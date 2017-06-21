@@ -1,0 +1,110 @@
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.pyc
+
+
+# Keystore Files #
+##################
+*.jks
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+
+# OS generated files #
+######################
+.DS_Store*
+ehthumbs.db
+Icon?
+Thumbs.db
+
+# Logs and databases #
+######################
+*.log
+
+# Editor Files #
+################
+*~
+*.swp
+
+# Gradle Files #
+################
+.gradle
+.m2
+
+# Derby files #
+###############
+*-db
+
+# Build output directies #
+##########################
+**/target
+**/build
+**/generated
+**/src/generated
+*/bin
+*/integrationTest/bin
+**/classes
+**/metastore_db
+**/spark-warehouse
+**/parquet-output
+**/viewing_history
+**/out
+**/compressed_billing.parquet
+**/compressed_billings.parquet
+
+# IntelliJ specific files/directories #
+#######################################
+out
+.idea
+*.ipr
+*.iws
+*.iml
+atlassian-ide-plugin.xml
+
+# Eclipse specific files/directories #
+######################################
+.cache-*
+.classpath
+.project
+.settings
+.metadata
+build-eclipse/
+
+# From local runners #
+######################
+tomcat.8080/
+Tomcat\ 7.launch
+
+# From npm #
+############
+node_modules/
+node-v4.4.0-darwin-x64
+
+# From generator #
+##################
+.ci/
+.tmp/
+
+# Credential Files #
+######################################
+*credentials.properties
