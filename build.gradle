@@ -1,38 +1,33 @@
-ext.githubProjectName = 'sstable-adaptor'
-
 buildscript {
     repositories {
         jcenter()
-        maven {
-            url "https://plugins.gradle.org/m2/"
-        }
-    }
-    dependencies {
-        classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:3.6.2'
-        classpath "com.github.jengelman.gradle.plugins:shadow:1.2.4"
-        classpath "com.netflix.nebula:nebula-release-plugin:4.2.0"
     }
 }
 
+plugins {
+    id 'nebula.netflixoss' version '3.6.4'
+    id 'com.github.johnrengelman.shadow' version '2.0.0'
+}
+
+ext.githubProjectName = 'sstable-adaptor'
+
 allprojects {
-    apply plugin: 'nebula.netflixoss'
-    apply plugin: 'java'
     apply plugin: 'idea'
     
-    group = 'com.netflix.'
-    sourceCompatibility = 1.8
-    targetCompatibility = 1.8
+    group = 'com.netflix.sstableadaptor'
 }
 
 subprojects {
-    group = 'com.netflix.sstableadaptor'
+    apply plugin: 'nebula.netflixoss'
+    apply plugin: 'java'
+    apply plugin: 'com.github.johnrengelman.shadow'
 
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+    
     repositories {
         jcenter()
     }
-
-    apply plugin: 'nebula.dependency-lock'
-    apply plugin: 'com.github.johnrengelman.shadow'
 
     dependencies {
         compile ("org.slf4j:slf4j-api:latest.release")

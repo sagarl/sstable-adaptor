@@ -108,3 +108,5 @@ node-v4.4.0-darwin-x64
 # Credential Files #
 ######################################
 *credentials.properties
+
+sstable-adaptor-core/cassandra
