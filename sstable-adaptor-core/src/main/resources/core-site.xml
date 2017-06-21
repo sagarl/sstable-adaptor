@@ -1,0 +1,142 @@
+<configuration>
+   <!--
+    <property>
+        <name>fs.s3.impl</name>
+        <value>com.facebook.presto.s3fs.PrestoS3FileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.s3n.impl</name>
+        <value>com.facebook.presto.s3fs.PrestoS3FileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.impl</name>
+        <value>com.facebook.presto.s3fs.PrestoS3FileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.AbstractFileSystem.s3.impl</name>
+        <value>com.facebook.presto.s3fs.PrestoS3FileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.AbstractFileSystem.s3n.impl</name>
+        <value>com.facebook.presto.s3fs.PrestoS3FileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.AbstractFileSystem.s3a.impl</name>
+        <value>com.facebook.presto.s3fs.PrestoS3FileSystem</value>
+    </property>
+
+    <property>
+        <name>presto.s3.max-client-retries</name>
+        <value>25</value>
+    </property>
+
+    <property>
+        <name>presto.s3.max-error-retries</name>
+        <value>50</value>
+    </property>
+
+    <property>
+        <name>presto.s3.max-connections</name>
+        <value>500</value>
+    </property>
+
+    <property>
+        <name>presto.s3.connect-timeout</name>
+        <value>5s</value>
+    </property>
+
+    <property>
+        <name>presto.s3.socket-timeout</name>
+        <value>5s</value>
+    </property>
+
+    <property>
+        <name>presto.s3.max-backoff-time</name>
+        <value>10m</value>
+    </property>
+
+    <property>
+        <name>presto.s3.max-retry-time</name>
+        <value>10m</value>
+    </property>
+
+    <property>
+        <name>presto.s3.use-instance-credentials</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>presto.s3.multipart.min-file-size</name>
+        <value>192000000</value>
+    </property>
+
+    <property>
+        <name>presto.s3.multipart.min-part-size</name>
+        <value>134217728</value>
+    </property>
+
+    <property>
+        <name>fs.AbstractFileSystem.s3.impl</name>
+        <value>com.facebook.presto.s3fs.DelegateS3FileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.AbstractFileSystem.s3n.impl</name>
+        <value>com.facebook.presto.s3fs.DelegateS3FileSystem</value>
+    </property>
+    -->
+
+    <property>
+        <name>fs.s3.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.s3n.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.AbstractFileSystem.s3.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.AbstractFileSystem.s3n.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.AbstractFileSystem.s3a.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+    </property>
+
+
+    <property>
+        <name>fs.s3a.attempts.maximum</name>
+        <value>3</value>
+    </property>
+    <property>
+        <name>fs.s3a.connection.establish.timeout</name>
+        <value>5000</value>
+    </property>
+    <property>
+        <name>fs.s3a.connection.maximum</name>
+        <value>100</value>
+    </property>
+    <property>
+        <name>fs.s3a.connection.timeout</name>
+        <value>3000</value>
+    </property>
+
+</configuration>

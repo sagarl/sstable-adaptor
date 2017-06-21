@@ -1,0 +1,47 @@
+apply plugin: 'com.github.johnrengelman.shadow'
+
+
+buildscript {
+    repositories {
+        jcenter()
+        mavenLocal()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath "com.github.jengelman.gradle.plugins:shadow:${shadowVersion}"
+        classpath "com.netflix.nebula:nebula-release-plugin:${nebulaVersion}"
+    }
+}
+
+configurations {
+    all {
+        resolutionStrategy.force "org.slf4j:slf4j-api:${slf4jVersion}"
+        resolutionStrategy.force "org.slf4j:slf4j-log4j12:${slf4jVersion}"
+        resolutionStrategy.force "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+        resolutionStrategy.force "com.google.guava:guava:${guavaVersion}"
+    }
+}
+
+
+
+dependencies {
+    compile project(':sstable-adaptor-cassandra')
+
+    compile "org.apache.hadoop:hadoop-common:${hadoopVersion}"
+    compile "org.apache.hadoop:hadoop-aws:${hadoopVersion}"
+    compile "org.joda:joda-convert:${jodaVersion}"
+    compile "org.slf4j:slf4j-api:${slf4jVersion}"
+    compile "org.slf4j:slf4j-log4j12:${slf4jVersion}"
+    compile "log4j:log4j:${log4jVersion}"
+    compile "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jacksonVersion}"
+
+    //compile "presto-s3fs:presto-s3fs:0.13"
+    testCompile "junit:junit-dep:${junitVersion}"
+    testCompile "com.novocode:junit-interface:${junitInterfaceVersion}"
+    testCompile "org.reflections:reflections:0.9.11"
+    testCompile "org.pegdown:pegdown:${pegdownVersion}" // For creating test report pages.
+}
+
