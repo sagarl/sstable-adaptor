@@ -15,6 +15,9 @@ buildscript {
 
 def artifact = new Properties()
 artifact.load(new FileInputStream("deploy.properties"))
+if (project.hasProperty('version'))
+   artifact.version = project.property('version')
+
 version=artifact.version
 group=artifact.groupId
 
