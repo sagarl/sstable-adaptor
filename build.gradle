@@ -7,8 +7,9 @@ buildscript {
     }
     dependencies {
         //classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:3.6.2'
-        //classpath "com.github.jengelman.gradle.plugins:shadow:1.2.4"
         //classpath "com.netflix.nebula:nebula-release-plugin:4.2.0"
+
+        classpath "com.github.jengelman.gradle.plugins:shadow:1.2.4"
         classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3"
     }
 }
@@ -18,10 +19,7 @@ artifact.load(new FileInputStream("deploy.properties"))
 if (project.hasProperty('version'))
    artifact.version = project.property('version')
 
-version=artifact.version
-group=artifact.groupId
-
-ext.githubProjectName = 'sstable-adaptor'
+//ext.githubProjectName = 'sstable-adaptor'
 
 allprojects {
     //apply plugin: 'nebula.netflixoss'
@@ -31,25 +29,33 @@ allprojects {
     apply plugin: 'maven'
     apply plugin: 'maven-publish'
     
-    version=artifact.version
-    group=artifact.groupId
+    version = artifact.version
+    group = artifact.groupId
+
     sourceCompatibility = 1.8
     targetCompatibility = 1.8
 }
 
 subprojects {
-    group = 'com.netflix.sstableadaptor'
 
     repositories {
         jcenter()
     }
 
     //apply plugin: 'nebula.dependency-lock'
-    //apply plugin: 'com.github.johnrengelman.shadow'
+    apply plugin: 'com.github.johnrengelman.shadow'
+
+    configurations.all {
+            resolutionStrategy.force "org.slf4j:slf4j-api:${slf4jVersion}"
+            resolutionStrategy.force "org.slf4j:slf4j-log4j12:${slf4jVersion}"
+            resolutionStrategy.force "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+            resolutionStrategy.force "com.google.guava:guava:${guavaVersion}"
+    }
+
 
     dependencies {
-        compile "org.slf4j:slf4j-api:latest.release"
-        testCompile "junit:junit:4.11"
+        //compile "org.slf4j:slf4j-api:latest.release"
+        testCompile "junit:junit:4.12"
     }
 
     javadoc {
@@ -66,8 +72,8 @@ subprojects {
        configurations = ['archives']
        publications = ['MyPublication']
        filesSpec {
-	 from '**/build/libs'
-	 into '.'
+	      from '**/build/libs'
+	      into '.'
        }
        pkg {
          repo = artifact.repo
@@ -98,3 +104,138 @@ subprojects {
    }
 }
 
+
+project(':sstable-adaptor-cassandra') {
+
+    dependencies {
+        //compileOnly 'com.google.code.findbugs:annotations'
+        compile "org.xerial.snappy:snappy-java:1.1.1.7"
+        compile "net.jpountz.lz4:lz4:1.3.0"
+        compile "com.ning:compress-lzf:0.8.4"
+        compile "com.google.guava:guava:18.0"
+        compile "org.hdrhistogram:HdrHistogram:2.1.9"
+
+        compile "commons-codec:commons-codec:1.9"
+        compile "org.apache.commons:commons-lang3:3.1"
+        compile "org.apache.commons:commons-math3:3.2"
+        compile "com.googlecode.concurrentlinkedhashmap:concurrentlinkedhashmap-lru:1.4"
+        compile("com.datastax.cassandra:cassandra-driver-core:3.0.1") {
+            transitive = false
+        }
+        compile "org.slf4j:slf4j-api:1.7.7"
+        compile "org.slf4j:jcl-over-slf4j:1.7.7"
+        compile "org.codehaus.jackson:jackson-core-asl:1.9.13"
+        compile "org.codehaus.jackson:jackson-mapper-asl:1.9.13"
+        compile "com.googlecode.json-simple:json-simple:1.1"
+        compile "com.boundary:high-scale-lib:1.0.6"
+        compile "com.github.jbellis:jamm:0.3.0"
+        //compile "org.yaml:snakeyaml:1.11"
+        compile "org.jacoco:org.jacoco.agent:0.7.5.201505241946"
+        compile "org.jacoco:org.jacoco.ant:0.7.5.201505241946"
+        compile "org.jboss.byteman:byteman:3.0.3"
+        compile "org.jboss.byteman:byteman-submit:3.0.3"
+        compile "org.jboss.byteman:byteman-bmunit:3.0.3"
+        compile "org.openjdk.jmh:jmh-core:1.1.1"
+        compile "org.openjdk.jmh:jmh-generator-annprocess:1.1.1"
+        compile "io.dropwizard.metrics:metrics-core:3.1.0"
+        compile "io.dropwizard.metrics:metrics-jvm:3.1.0"
+        compile "com.addthis.metrics:reporter-config3:3.0.3"
+        compile "org.mindrot:jbcrypt:0.3m"
+        compile "io.airlift:airline:0.6"
+        compile "io.netty:netty-all:4.0.44.Final"
+        compile "com.clearspring.analytics:stream:2.5.2"
+        compile "org.eclipse.jdt.core.compiler:ecj:4.4.2"
+        compile "org.caffinitas.ohc:ohc-core:0.4.4"
+        compile "org.caffinitas.ohc:ohc-core-j8:0.4.4"
+        compile "net.ju-n.compile-command-annotations:compile-command-annotations:1.2.0"
+        compile ("org.fusesource:sigar:1.6.4") {
+            exclude group: "log4j", module: "log4j"
+        }
+        compile "joda-time:joda-time:2.4"
+        compile "com.carrotsearch:hppc:0.5.4"
+        compile "de.jflex:jflex:1.6.0"
+        compile "com.github.rholder:snowball-stemmer:1.3.0.581.1"
+        compile "com.googlecode.concurrent-trees:concurrent-trees:2.4.0"
+        compile "com.github.ben-manes.caffeine:caffeine:2.3.5"
+        compile "org.jctools:jctools-core:1.2.1"
+        compile "org.apache.hadoop:hadoop-common:2.7.3"
+
+        testCompile 'junit:junit:4.12'
+    }
+
+}
+
+
+project(':sstable-adaptor-core') {
+    dependencies {
+        compile project(':sstable-adaptor-cassandra')
+        compile "org.apache.hadoop:hadoop-common:${hadoopVersion}"
+        compile "org.apache.hadoop:hadoop-aws:${hadoopVersion}"
+
+        compile "org.joda:joda-convert:${jodaVersion}"
+        compile "org.slf4j:slf4j-api:${slf4jVersion}"
+        compile "org.slf4j:slf4j-log4j12:${slf4jVersion}"
+        compile "log4j:log4j:${log4jVersion}"
+        compile "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+        compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jacksonVersion}"
+        compile "org.codehaus.jackson:jackson-core-asl:1.9.13"
+        compile "org.codehaus.jackson:jackson-mapper-asl:1.9.13"
+
+        testCompile "junit:junit:4.12"
+        testCompile "junit:junit-dep:${junitVersion}"
+        testCompile "com.novocode:junit-interface:${junitInterfaceVersion}"
+        testCompile "org.reflections:reflections:0.9.11"
+        testCompile "org.pegdown:pegdown:${pegdownVersion}" // For creating test report pages.
+    }
+
+    shadowJar {
+        zip64 true
+        from(project.sourceSets.main.output)
+        configurations = [project.configurations.runtime]
+        archiveName = "standalone-runner.jar"
+
+        dependencies {
+            exclude(dependency("cglib:.*"))
+            exclude(dependency("com.addthis.metrics:.*"))
+            exclude(dependency("com.codahale.metrics:.*"))
+            exclude(dependency("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"))
+            exclude(dependency("com.google.code.gson:.*"))
+            exclude(dependency("com.google.protobuf:.*"))
+            exclude(dependency("com.jcraft:.*"))
+            exclude(dependency("com.ning:.*"))
+            exclude(dependency("com.sun.jersey:.*"))
+            exclude(dependency("com.univocity:.*"))
+            exclude(dependency("io.dropwizard.metrics:.*"))
+            //exclude(dependency("io.netty:.*"))
+            exclude(dependency("javax.servlet:.*"))
+            exclude(dependency("javax.servlet.jsp:.*"))
+            exclude(dependency("javax.ws.rs:.*"))
+            exclude(dependency("net.java.dev.jets3t:.*"))
+            exclude(dependency("org.antlr:.*"))
+            exclude(dependency("org.apache.avro:.*"))
+            exclude(dependency("org.apache.curator:.*"))
+            exclude(dependency("org.apache.ivy:.*"))
+            exclude(dependency("org.apache.htrace:.*"))
+            //exclude(dependency("org.apache.hadoop:.*"))
+            //exclude(dependency("org.apache.mesos:.*"))
+            //exclude(dependency("org.apache.spark:.*"))
+            exclude(dependency("org.apache.xbean:.*"))
+            exclude(dependency("org.apache.zookeeper:.*"))
+            exclude(dependency("org.codehaus.jackson:.*"))
+            exclude(dependency("org.codehaus.janino:.*"))
+            exclude(dependency("org.glassfish.jersey.media:jersey-media-jaxb:.*"))
+            exclude(dependency("org.glassfish.jersey.core:.*"))
+            exclude(dependency("org.glassfish.jersey.containers:.*"))
+            exclude(dependency("org.jacoco:.*"))
+            exclude(dependency("org.json4s:.*"))
+            exclude(dependency("org.mortbay.jetty:.*"))
+            exclude(dependency("org.openjdk.jmh:.*"))
+            exclude(dependency("org.roaringbitmap:.*"))
+            exclude(dependency("oro:.*"))
+            exclude(dependency("net.razorvine:.*"))
+            exclude(dependency("net.sf.py4j:.*"))
+        }
+
+        //relocate 'com.google', 'shadow.com.google'
+    }
+}
