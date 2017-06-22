@@ -27,3 +27,8 @@ dependencies {
     testCompile "org.pegdown:pegdown:${pegdownVersion}" // For creating test report pages.
 }
 
+task runApp(type:JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+
+    main = project.hasProperty("mainClass") ? project.getProperty("mainClass") : "com.netflix.sstabledaptor.StandaloneRunner"
+}

@@ -48,7 +48,8 @@ subprojects {
     //apply plugin: 'com.github.johnrengelman.shadow'
 
     dependencies {
-        compile ("org.slf4j:slf4j-api:latest.release")
+        compile "org.slf4j:slf4j-api:latest.release"
+        testCompile "junit:junit:4.11"
     }
 
     javadoc {
@@ -96,3 +97,4 @@ subprojects {
      }
    }
 }
+
