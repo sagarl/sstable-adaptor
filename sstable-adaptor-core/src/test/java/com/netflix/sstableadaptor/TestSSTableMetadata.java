@@ -16,6 +16,7 @@
 
 package com.netflix.sstableadaptor;
 
+import com.netflix.sstableadaptor.sstable.CasspactorSSTableReader;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.db.PartitionColumns;

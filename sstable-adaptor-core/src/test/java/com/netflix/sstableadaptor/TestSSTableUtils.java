@@ -16,7 +16,9 @@
 
 package com.netflix.sstableadaptor;
 
-import com.netflix.casspactor.util.SSTableUtils;
+
+import com.netflix.sstableadaptor.sstable.CasspactorSSTableReader;
+import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.CompositeType;
@@ -30,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
-
 
 /**
  * Test SSTable utilites.
