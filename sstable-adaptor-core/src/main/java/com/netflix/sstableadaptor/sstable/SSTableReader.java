@@ -28,7 +28,6 @@ import org.apache.cassandra.dht.*;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.IndexSummary;
-import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
 import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
@@ -47,7 +46,7 @@ import java.util.*;
  *
  *  @author mdo
  */
-public class CasspactorSSTableReader {
+public class SSTableReader {
     private String fileLocation;
     private long fileLength;
     private int version;  //sstable version according to C*
@@ -62,7 +61,7 @@ public class CasspactorSSTableReader {
     private IPartitioner partitioner; //C* partitioner
     private EstimatedHistogram estimatedPartitionSize;  //histogram on the partition size?
     private StatsMetadata stats;  //other table stats
-    private SSTableReader sstableReader;
+    private org.apache.cassandra.io.sstable.format.SSTableReader sstableReader;
     private IndexSummary indexSummary;
 
     private CFMetaData cfMetaData;
@@ -73,7 +72,7 @@ public class CasspactorSSTableReader {
      *  @param filePath location of the sstable file
      *  @throws IOException when file location is not valid
      */
-    public CasspactorSSTableReader(final String filePath) throws IOException {
+    public SSTableReader(final String filePath) throws IOException {
         this(filePath, Collections.<String>emptyList(), Collections.<String>emptyList());
     }
 
@@ -86,11 +85,11 @@ public class CasspactorSSTableReader {
      *  @param clustringKeyNames list of clustering key names
      *  @throws IOException when file location is not valid
      */
-    public CasspactorSSTableReader(final String filePath,
-                                   final String keyspaceName,
-                                   final String tableName,
-                                   final List<String> partitionKeyNames,
-                                   final List<String> clustringKeyNames) throws IOException {
+    public SSTableReader(final String filePath,
+                         final String keyspaceName,
+                         final String tableName,
+                         final List<String> partitionKeyNames,
+                         final List<String> clustringKeyNames) throws IOException {
         this.fileLocation = filePath;
 
         initialization(keyspaceName, tableName, partitionKeyNames, clustringKeyNames);
@@ -103,9 +102,9 @@ public class CasspactorSSTableReader {
      *  @param clustringKeyNames list of clustering key names
      *  @throws IOException when file location is not valid
      */
-    public CasspactorSSTableReader(final String filePath,
-                                   final List<String> partitionKeyNames,
-                                   final List<String> clustringKeyNames) throws IOException {
+    public SSTableReader(final String filePath,
+                         final List<String> partitionKeyNames,
+                         final List<String> clustringKeyNames) throws IOException {
         this(filePath, "", "", partitionKeyNames, clustringKeyNames);
     }
 
@@ -123,7 +122,7 @@ public class CasspactorSSTableReader {
                                 final List<String> clusteringKeyNames) throws IOException {
         descriptor = Descriptor.fromFilename(fileLocation);
         cfMetaData = metadataFromSSTable(descriptor, keyspaceName, tableName, partitionKeyNames, clusteringKeyNames);
-        sstableReader = SSTableReader.openNoValidation(descriptor, cfMetaData);
+        sstableReader = org.apache.cassandra.io.sstable.format.SSTableReader.openNoValidation(descriptor, cfMetaData);
         fileLength = sstableReader.onDiskLength();
         version = descriptor.version.correspondingMessagingVersion();
         generation = descriptor.generation;
@@ -151,7 +150,7 @@ public class CasspactorSSTableReader {
      *
      * @return IPartitioner
      */
-    public SSTableReader getSstableReader() {
+    public org.apache.cassandra.io.sstable.format.SSTableReader getSstableReader() {
         return this.sstableReader;
     }
 

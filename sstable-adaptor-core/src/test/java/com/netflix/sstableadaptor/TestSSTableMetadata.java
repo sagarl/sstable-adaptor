@@ -16,7 +16,7 @@
 
 package com.netflix.sstableadaptor;
 
-import com.netflix.sstableadaptor.sstable.CasspactorSSTableReader;
+import com.netflix.sstableadaptor.sstable.SSTableReader;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.db.PartitionColumns;
@@ -40,7 +40,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * Test reading SSTable's metadata using CasspactorSSTableReader API.
+ * Test reading SSTable's metadata using SSTableReader API.
  */
 public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestSStableDataLister.class);
@@ -84,16 +84,16 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
     @Test
     public void testAccessSSTableMetadataCase1() throws IOException {
         final String inputSSTableFullPathFileName = DATA_DIR + "bills_compress/mc-6-big-Data.db";
-        final CasspactorSSTableReader casspactorSSTableReader =
-                   new CasspactorSSTableReader(inputSSTableFullPathFileName);
+        final SSTableReader SSTableReader =
+                   new SSTableReader(inputSSTableFullPathFileName);
 
-        LOGGER.info("File location: " + casspactorSSTableReader.getFileLocation());
-        LOGGER.info("File size: " + casspactorSSTableReader.getFileLength());
-        LOGGER.info("Partitioner: " + casspactorSSTableReader.getPartitioner());
-        LOGGER.info("Min token: " + casspactorSSTableReader.getPartitioner().getMinimumToken());
-        LOGGER.info("Max token: " + casspactorSSTableReader.getPartitioner().getMaximumToken());
+        LOGGER.info("File location: " + SSTableReader.getFileLocation());
+        LOGGER.info("File size: " + SSTableReader.getFileLength());
+        LOGGER.info("Partitioner: " + SSTableReader.getPartitioner());
+        LOGGER.info("Min token: " + SSTableReader.getPartitioner().getMinimumToken());
+        LOGGER.info("Max token: " + SSTableReader.getPartitioner().getMaximumToken());
 
-        final IndexSummary indexSummary = casspactorSSTableReader.getIndexSummary();
+        final IndexSummary indexSummary = SSTableReader.getIndexSummary();
         LOGGER.info("IndexSummary - Estimated key count:" + indexSummary.getEstimatedKeyCount());
         LOGGER.info("IndexSummary - Size: " + indexSummary.size());
         LOGGER.info("IndexSummary - Effective index interval: " + indexSummary.getEffectiveIndexInterval());
@@ -105,14 +105,14 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
             LOGGER.info("IndexSummary - key[{}]: {}",
                     i, UTF8Serializer.instance.deserialize(keyBuf));
             LOGGER.info("\ttoken: {}",
-                    casspactorSSTableReader.getPartitioner().getToken(keyBuf));
+                    SSTableReader.getPartitioner().getToken(keyBuf));
             LOGGER.info("\tposition: {}, position in summary: {}, end in summary: {}",
                     indexSummary.getPosition(i),
                     indexSummary.getPositionInSummary(i),
                     indexSummary.getEndInSummary(i));
         }
 
-        final CFMetaData cfMetaData = casspactorSSTableReader.getCfMetaData();
+        final CFMetaData cfMetaData = SSTableReader.getCfMetaData();
 
         LOGGER.info("=======================================");
         LOGGER.info("Keyspace name: " + cfMetaData.ksName);
@@ -148,39 +148,39 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
             printColumnDefinition(colDef);
         }
 
-        LOGGER.info("Estimated partition size: " + casspactorSSTableReader.getEstimatedPartitionSize());
-        LOGGER.info("Estimated total rows: " + casspactorSSTableReader.getTotalRows());
+        LOGGER.info("Estimated partition size: " + SSTableReader.getEstimatedPartitionSize());
+        LOGGER.info("Estimated total rows: " + SSTableReader.getTotalRows());
 
-        LOGGER.info("Estimated column count: " + casspactorSSTableReader.getStats().estimatedColumnCount);
+        LOGGER.info("Estimated column count: " + SSTableReader.getStats().estimatedColumnCount);
         LOGGER.info("Estimated partition size: ");
-        final long[] buckets = casspactorSSTableReader.getStats().estimatedPartitionSize.getBuckets(false);
+        final long[] buckets = SSTableReader.getStats().estimatedPartitionSize.getBuckets(false);
         for (int i = 0; i < buckets.length; i++) {
             LOGGER.info("\tPartition bucket[" + i + "]: " + buckets[i]);
         }
 
         LOGGER.info("=======================================");
-        LOGGER.info("First key: " + UTF8Type.instance.compose(casspactorSSTableReader.getFirstKey().getKey()));
-        LOGGER.info("Last key: " + UTF8Type.instance.compose(casspactorSSTableReader.getLastKey().getKey()));
+        LOGGER.info("First key: " + UTF8Type.instance.compose(SSTableReader.getFirstKey().getKey()));
+        LOGGER.info("Last key: " + UTF8Type.instance.compose(SSTableReader.getLastKey().getKey()));
 
         LOGGER.info("=======================================");
-        LOGGER.info("Min TTL: " + casspactorSSTableReader.getStats().minTTL);
-        LOGGER.info("Max TTL: " + casspactorSSTableReader.getStats().maxTTL);
-        LOGGER.info("Min timestamp: " + casspactorSSTableReader.getStats().minTimestamp);
-        LOGGER.info("Max timestamp: " + casspactorSSTableReader.getStats().maxTimestamp);
+        LOGGER.info("Min TTL: " + SSTableReader.getStats().minTTL);
+        LOGGER.info("Max TTL: " + SSTableReader.getStats().maxTTL);
+        LOGGER.info("Min timestamp: " + SSTableReader.getStats().minTimestamp);
+        LOGGER.info("Max timestamp: " + SSTableReader.getStats().maxTimestamp);
 
         //TODO: this block only works because we know there is only one clustering column
         LOGGER.info("Min clustering value: ");
-        for (ByteBuffer buffer: casspactorSSTableReader.getStats().minClusteringValues) {
+        for (ByteBuffer buffer: SSTableReader.getStats().minClusteringValues) {
             LOGGER.info("\t" + cfMetaData.clusteringColumns().get(0).type.compose(buffer));
         }
         LOGGER.info("Max clustering value: ");
-        for (ByteBuffer buffer: casspactorSSTableReader.getStats().maxClusteringValues) {
+        for (ByteBuffer buffer: SSTableReader.getStats().maxClusteringValues) {
               LOGGER.info("\t" + cfMetaData.clusteringColumns().get(0).type.compose(buffer));
         }
 
-        LOGGER.info("Min local deletion time: " + casspactorSSTableReader.getStats().minLocalDeletionTime);
-        LOGGER.info("Max local deletion time: " + casspactorSSTableReader.getStats().maxLocalDeletionTime);
-        LOGGER.info("SSTable level: " + casspactorSSTableReader.getStats().sstableLevel);
+        LOGGER.info("Min local deletion time: " + SSTableReader.getStats().minLocalDeletionTime);
+        LOGGER.info("Max local deletion time: " + SSTableReader.getStats().maxLocalDeletionTime);
+        LOGGER.info("SSTable level: " + SSTableReader.getStats().sstableLevel);
 
         LOGGER.info("=======================================");
         LOGGER.info("Key validator: " + cfMetaData.getKeyValidator());
@@ -230,10 +230,10 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
     @Test
     public void testAccessSSTableMetadataCase2() throws IOException {
         final String inputSSTableFullPathFileName = DATA_DIR + "compressed_bills/mc-2-big-Data.db";
-        final CasspactorSSTableReader casspactorSSTableReader =
-            new CasspactorSSTableReader(inputSSTableFullPathFileName);
+        final SSTableReader SSTableReader =
+            new SSTableReader(inputSSTableFullPathFileName);
 
-        final CFMetaData cfMetaData = casspactorSSTableReader.getCfMetaData();
+        final CFMetaData cfMetaData = SSTableReader.getCfMetaData();
 
         LOGGER.info("=======================================");
         LOGGER.info("Keyspace name: " + cfMetaData.ksName);
@@ -263,34 +263,34 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
             printColumnDefinition(colDef);
         }
 
-        LOGGER.info("Estimated partition size: " + casspactorSSTableReader.getEstimatedPartitionSize());
-        LOGGER.info("Estimated total rows: " + casspactorSSTableReader.getTotalRows());
+        LOGGER.info("Estimated partition size: " + SSTableReader.getEstimatedPartitionSize());
+        LOGGER.info("Estimated total rows: " + SSTableReader.getTotalRows());
 
-        LOGGER.info("Estimated column count: " + casspactorSSTableReader.getStats().estimatedColumnCount);
-
-        LOGGER.info("=======================================");
-        LOGGER.info("First key: " + UTF8Type.instance.compose(casspactorSSTableReader.getFirstKey().getKey()));
-        LOGGER.info("Last key: " + UTF8Type.instance.compose(casspactorSSTableReader.getLastKey().getKey()));
+        LOGGER.info("Estimated column count: " + SSTableReader.getStats().estimatedColumnCount);
 
         LOGGER.info("=======================================");
-        LOGGER.info("Min TTL: " + casspactorSSTableReader.getStats().minTTL);
-        LOGGER.info("Max TTL: " + casspactorSSTableReader.getStats().maxTTL);
-        LOGGER.info("Min timestamp: " + casspactorSSTableReader.getStats().minTimestamp);
-        LOGGER.info("Max timestamp: " + casspactorSSTableReader.getStats().maxTimestamp);
+        LOGGER.info("First key: " + UTF8Type.instance.compose(SSTableReader.getFirstKey().getKey()));
+        LOGGER.info("Last key: " + UTF8Type.instance.compose(SSTableReader.getLastKey().getKey()));
+
+        LOGGER.info("=======================================");
+        LOGGER.info("Min TTL: " + SSTableReader.getStats().minTTL);
+        LOGGER.info("Max TTL: " + SSTableReader.getStats().maxTTL);
+        LOGGER.info("Min timestamp: " + SSTableReader.getStats().minTimestamp);
+        LOGGER.info("Max timestamp: " + SSTableReader.getStats().maxTimestamp);
 
         //TODO: this block only works because we know there is only one clustering column
         LOGGER.info("Min clustering value: ");
-        for (ByteBuffer buffer: casspactorSSTableReader.getStats().minClusteringValues) {
+        for (ByteBuffer buffer: SSTableReader.getStats().minClusteringValues) {
             LOGGER.info("\t" + cfMetaData.clusteringColumns().get(0).type.compose(buffer));
         }
         LOGGER.info("Max clustering value: ");
-        for (ByteBuffer buffer: casspactorSSTableReader.getStats().maxClusteringValues) {
+        for (ByteBuffer buffer: SSTableReader.getStats().maxClusteringValues) {
             LOGGER.info("\t" + cfMetaData.clusteringColumns().get(0).type.compose(buffer));
         }
 
-        LOGGER.info("Min local deletion time: " + casspactorSSTableReader.getStats().minLocalDeletionTime);
-        LOGGER.info("Max local deletion time: " + casspactorSSTableReader.getStats().maxLocalDeletionTime);
-        LOGGER.info("SSTable level: " + casspactorSSTableReader.getStats().sstableLevel);
+        LOGGER.info("Min local deletion time: " + SSTableReader.getStats().minLocalDeletionTime);
+        LOGGER.info("Max local deletion time: " + SSTableReader.getStats().maxLocalDeletionTime);
+        LOGGER.info("SSTable level: " + SSTableReader.getStats().sstableLevel);
 
         LOGGER.info("=======================================");
         LOGGER.info("Key validator: " + cfMetaData.getKeyValidator());

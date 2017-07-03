@@ -18,7 +18,7 @@ package com.netflix.sstableadaptor;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import com.netflix.sstableadaptor.sstable.CasspactorSSTableReader;
+import com.netflix.sstableadaptor.sstable.SSTableReader;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.db.BufferClustering;
@@ -36,7 +36,6 @@ import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.SSTableTxnWriter;
 import org.apache.cassandra.io.sstable.format.SSTableFlushObserver;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
-import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.format.SSTableWriter;
 import org.apache.cassandra.io.sstable.format.big.BigTableWriter;
 import org.apache.cassandra.io.sstable.metadata.MetadataCollector;
@@ -128,14 +127,14 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
 
         try {
             final CFMetaData inputCFMetaData =
-                CasspactorSSTableReader.metaDataFromSSTable(inputSSTableFullPathFileName,
+                SSTableReader.metaDataFromSSTable(inputSSTableFullPathFileName,
                                                             "casspactor",
                                                             "bills_nc",
                                                             Collections.<String>emptyList(),
                                                             Collections.<String>emptyList());
             final CFMetaData outputCFMetaData = createNewCFMetaData(inputSSTableDescriptor, inputCFMetaData);
 
-            final SSTableReader inputSStable = SSTableReader.openNoValidation(inputSSTableDescriptor, inputCFMetaData);
+            final org.apache.cassandra.io.sstable.format.SSTableReader inputSStable = org.apache.cassandra.io.sstable.format.SSTableReader.openNoValidation(inputSSTableDescriptor, inputCFMetaData);
             writer = createSSTableWriter(inputSSTableDescriptor, outputCFMetaData, inputSStable);
 
             final ISSTableScanner currentScanner = inputSStable.getScanner();
@@ -161,7 +160,7 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
         final String inputSSTableFullPathFileName = DATA_DIR + "bills_compress/mc-6-big-Data.db";
         final Descriptor descriptor = Descriptor.fromFilename(inputSSTableFullPathFileName);
         final CFMetaData inputCFMetaData =
-            CasspactorSSTableReader.metaDataFromSSTable(inputSSTableFullPathFileName,
+            SSTableReader.metaDataFromSSTable(inputSSTableFullPathFileName,
                                                         "casspactor",
                                                         "bills_compress",
                                                         Collections.<String>emptyList(),
@@ -292,7 +291,7 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
 
     private static SSTableWriter createSSTableWriter(final Descriptor inputSSTableDescriptor,
                                                      final CFMetaData outCfmMetaData,
-                                                     final SSTableReader inputSstable) {
+                                                     final org.apache.cassandra.io.sstable.format.SSTableReader inputSstable) {
         final String sstableDirectory = System.getProperty("user.dir") + "/cassandra/compresseddata";
         LOGGER.info("Output directory: " + sstableDirectory);
 

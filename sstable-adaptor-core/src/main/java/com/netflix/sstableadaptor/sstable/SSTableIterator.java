@@ -47,8 +47,8 @@ import java.util.List;
  * </ul>
  *
  */
-public class CasspactorIterator implements UnfilteredPartitionIterator {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CasspactorIterator.class);
+public class SSTableIterator implements UnfilteredPartitionIterator {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SSTableIterator.class);
     private static final long UNFILTERED_TO_UPDATE_PROGRESS = 100;
 
     private final List<ISSTableScanner> scanners;
@@ -75,7 +75,7 @@ public class CasspactorIterator implements UnfilteredPartitionIterator {
      * @param nowInSec   - now in secs
      */
     @SuppressWarnings("resource")
-    public CasspactorIterator(final List<ISSTableScanner> scanners, final CFMetaData cfMetaData, final int nowInSec) {
+    public SSTableIterator(final List<ISSTableScanner> scanners, final CFMetaData cfMetaData, final int nowInSec) {
         this.cfMetaData = cfMetaData;
         this.scanners = scanners;
         this.nowInSec = nowInSec;
@@ -162,7 +162,7 @@ public class CasspactorIterator implements UnfilteredPartitionIterator {
 
                 assert merged > 0;
 
-                CasspactorIterator.this.updateCounterFor(merged);
+                SSTableIterator.this.updateCounterFor(merged);
 
                 Columns statics = Columns.NONE;
                 Columns regulars = Columns.NONE;

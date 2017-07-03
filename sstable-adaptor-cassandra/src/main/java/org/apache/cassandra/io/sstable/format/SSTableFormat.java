@@ -31,8 +31,8 @@ public interface SSTableFormat
     static boolean enableSSTableDevelopmentTestMode = Boolean.getBoolean("cassandra.test.sstableformatdevelopment");
 
 
-    Version getLatestVersion();
-    Version getVersion(String version);
+    public Version getLatestVersion();
+    public Version getVersion(String version);
 
     SSTableWriter.Factory getWriterFactory();
     SSTableReader.Factory getReaderFactory();

@@ -17,7 +17,7 @@
 package com.netflix.sstableadaptor;
 
 
-import com.netflix.sstableadaptor.sstable.CasspactorSSTableReader;
+import com.netflix.sstableadaptor.sstable.SSTableReader;
 import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.marshal.AbstractType;
@@ -67,10 +67,10 @@ public class TestSSTableUtils extends TestBaseSSTableFunSuite {
     public void testParsingCompositeKey() throws IOException {
         final String inputSSTableFullPathFileName = DATA_DIR + "compressed_bills/mc-2-big-Data.db";
 
-        final CasspactorSSTableReader casspactorSSTableReader =
-                                new CasspactorSSTableReader(inputSSTableFullPathFileName);
+        final SSTableReader SSTableReader =
+                                new SSTableReader(inputSSTableFullPathFileName);
 
-        final CFMetaData cfMetaData = casspactorSSTableReader.getCfMetaData();
+        final CFMetaData cfMetaData = SSTableReader.getCfMetaData();
         final String user = "user2";
         final String email = "abc@netflix.com";
         final AbstractType<?> keyDataType = cfMetaData.getKeyValidator();

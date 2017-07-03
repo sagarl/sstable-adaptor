@@ -17,11 +17,14 @@
 package com.netflix.sstableadaptor.util;
 
 
+import com.netflix.sstableadaptor.config.CassandraTable;
+import com.netflix.sstableadaptor.sstable.SSTableReader;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.CompositeType;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,9 +34,6 @@ import java.util.List;
  *  @author mdo
  */
 public final class SSTableUtils {
-
-    private SSTableUtils() {
-    }
 
     /**
      * Parse the list of values out of a composite key.
@@ -59,6 +59,17 @@ public final class SSTableUtils {
         }
 
         return keyValue;
+    }
+
+    public static CFMetaData loadCFMetaData(String dbFile,
+                                            CassandraTable cassTable,
+                                            List<String> partitionKeyNames,
+                                            List<String> clusteringKeyNames) throws IOException {
+        return SSTableReader.metaDataFromSSTable(dbFile,
+                cassTable.getKeyspaceName(),
+                cassTable.getTableName(),
+                partitionKeyNames,
+                clusteringKeyNames);
     }
 
 }

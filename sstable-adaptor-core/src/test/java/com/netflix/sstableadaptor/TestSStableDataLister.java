@@ -17,8 +17,8 @@
 package com.netflix.sstableadaptor;
 
 
-import com.netflix.sstableadaptor.sstable.CasspactorIterator;
-import com.netflix.sstableadaptor.sstable.CasspactorSSTableReader;
+import com.netflix.sstableadaptor.sstable.SSTableIterator;
+import com.netflix.sstableadaptor.sstable.SSTableReader;
 import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.rows.Cell;
@@ -148,16 +148,16 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
         int counter = 0;
 
         try {
-            final CasspactorSSTableReader casspactorSsTableReader =
-                        new CasspactorSSTableReader(inputSSTableFullPathFileName);
+            final SSTableReader ssTableReader =
+                        new SSTableReader(inputSSTableFullPathFileName);
             final ISSTableScanner currentScanner =
-                        casspactorSsTableReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
+                        ssTableReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
 
             while (currentScanner.hasNext()) {
                 LOGGER.info("===================111==================================");
                 final UnfilteredRowIterator unfilteredRowIterator = currentScanner.next();
                 final ByteBuffer partitionKey = unfilteredRowIterator.partitionKey().getKey();
-                final CFMetaData cfMetaData = casspactorSsTableReader.getCfMetaData();
+                final CFMetaData cfMetaData = ssTableReader.getCfMetaData();
                 LOGGER.info("Partition key: " + new String(unfilteredRowIterator.partitionKey().getKey().array()));
 
                 final List<Object> list = SSTableUtils.parsePrimaryKey(cfMetaData, partitionKey);
@@ -198,14 +198,14 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
     }
 
     /**
-     * Test on the CasspactorIterator.
+     * Test on the SSTableIterator.
      * @throws IOException
      */
     @Test
     public void testCasspactorIterator() throws IOException {
         final String inputSSTableFullPathFileName = DATA_DIR + "bills_compress/mc-6-big-Data.db";
-        final CasspactorSSTableReader reader1 = new CasspactorSSTableReader(inputSSTableFullPathFileName);
-        final CasspactorSSTableReader reader2 = new CasspactorSSTableReader(inputSSTableFullPathFileName);
+        final SSTableReader reader1 = new SSTableReader(inputSSTableFullPathFileName);
+        final SSTableReader reader2 = new SSTableReader(inputSSTableFullPathFileName);
         final CFMetaData cfMetaData = reader1.getCfMetaData();
 
         final List<ISSTableScanner> scanners = new ArrayList<>();
@@ -215,7 +215,7 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
         scanners.add(reader2.getSSTableScanner());
 
         int counter = 0;
-        try (CasspactorIterator ci = new CasspactorIterator(scanners, reader1.getCfMetaData(), nowInSecs)) {
+        try (SSTableIterator ci = new SSTableIterator(scanners, reader1.getCfMetaData(), nowInSecs)) {
             while (ci.hasNext()) {
 
                 LOGGER.info("=====================================================");
