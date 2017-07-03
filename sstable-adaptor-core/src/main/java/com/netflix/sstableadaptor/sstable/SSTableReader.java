@@ -31,6 +31,7 @@ import org.apache.cassandra.io.sstable.IndexSummary;
 import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
 import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
+import org.apache.cassandra.io.util.HadoopFileUtils;
 import org.apache.cassandra.utils.EstimatedHistogram;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.directory.api.util.Strings;
@@ -41,7 +42,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
- *  This is the Casspactor's SSTable reader that can help to
+ *  This is the SSTable Adaptor's reader that can help to
  *  build iterator of rows out of a sstable file.
  *
  *  @author mdo
@@ -120,7 +121,7 @@ public class SSTableReader {
                                 final String tableName,
                                 final List<String> partitionKeyNames,
                                 final List<String> clusteringKeyNames) throws IOException {
-        descriptor = Descriptor.fromFilename(fileLocation);
+        descriptor = Descriptor.fromFilename(HadoopFileUtils.normalizeFileName(fileLocation));
         cfMetaData = metadataFromSSTable(descriptor, keyspaceName, tableName, partitionKeyNames, clusteringKeyNames);
         sstableReader = org.apache.cassandra.io.sstable.format.SSTableReader.openNoValidation(descriptor, cfMetaData);
         fileLength = sstableReader.onDiskLength();

@@ -42,12 +42,12 @@ public class HadoopFileUtils {
 
     public static String normalizeFileName(String fileName)
     {
-        if (fileName.startsWith("s3a:")) {
-            return fileName.replace("s3a:", "s3:");
+        if (fileName.startsWith("s3:")) {
+            return fileName.replace("s3:", "s3a:");
         }
 
         if (fileName.startsWith("s3n:")) {
-            return fileName.replace("s3n:", "s3:");
+            return fileName.replace("s3n:", "s3a:");
         }
 
         return fileName;
