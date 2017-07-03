@@ -19,6 +19,7 @@ package com.netflix.sstableadaptor;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.netflix.sstableadaptor.sstable.SSTableReader;
+import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.db.BufferClustering;
@@ -30,17 +31,13 @@ import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.db.partitions.PartitionUpdate;
 import org.apache.cassandra.db.rows.*;
 import org.apache.cassandra.dht.Murmur3Partitioner;
-import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.SSTableTxnWriter;
 import org.apache.cassandra.io.sstable.format.SSTableFlushObserver;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
 import org.apache.cassandra.io.sstable.format.SSTableWriter;
-import org.apache.cassandra.io.sstable.format.big.BigTableWriter;
-import org.apache.cassandra.io.sstable.metadata.MetadataCollector;
 import org.apache.cassandra.io.util.FileUtils;
-import org.apache.cassandra.schema.CompressionParams;
 import org.apache.cassandra.utils.Pair;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -48,11 +45,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -132,10 +127,10 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
                                                             "bills_nc",
                                                             Collections.<String>emptyList(),
                                                             Collections.<String>emptyList());
-            final CFMetaData outputCFMetaData = createNewCFMetaData(inputSSTableDescriptor, inputCFMetaData);
+            final CFMetaData outputCFMetaData = SSTableUtils.createNewCFMetaData(inputSSTableDescriptor, inputCFMetaData);
 
             final org.apache.cassandra.io.sstable.format.SSTableReader inputSStable = org.apache.cassandra.io.sstable.format.SSTableReader.openNoValidation(inputSSTableDescriptor, inputCFMetaData);
-            writer = createSSTableWriter(inputSSTableDescriptor, outputCFMetaData, inputSStable);
+            writer = SSTableUtils.createSSTableWriter(inputSSTableDescriptor, outputCFMetaData, inputSStable);
 
             final ISSTableScanner currentScanner = inputSStable.getScanner();
 
@@ -166,7 +161,7 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
                                                         Collections.<String>emptyList(),
                                                         Collections.<String>emptyList());
 
-        final CFMetaData outputCFMetaData = createNewCFMetaData(descriptor, inputCFMetaData);
+        final CFMetaData outputCFMetaData = SSTableUtils.createNewCFMetaData(descriptor, inputCFMetaData);
         final SerializationHeader header = new SerializationHeader(true, outputCFMetaData,
             inputCFMetaData.partitionColumns(),
             EncodingStats.NO_STATS);
@@ -255,72 +250,6 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
         public void complete() {
             LOGGER.info("Complete writing with the last key: " + new String(currentKey.left.array()));
         }
-    }
-
-
-    private static CFMetaData createNewCFMetaData(final Descriptor inputSSTableDescriptor,
-                                                  final CFMetaData metadata) {
-        final CFMetaData.Builder cfMetadataBuilder = CFMetaData.Builder.create(inputSSTableDescriptor.ksname,
-            inputSSTableDescriptor.cfname);
-
-        final Collection<ColumnDefinition> colDefs = metadata.allColumns();
-
-        for (ColumnDefinition colDef : colDefs) {
-            switch (colDef.kind) {
-                case PARTITION_KEY:
-                    cfMetadataBuilder.addPartitionKey(colDef.name, colDef.cellValueType());
-                    break;
-                case CLUSTERING:
-                    cfMetadataBuilder.addClusteringColumn(colDef.name, colDef.cellValueType());
-                    break;
-                case STATIC:
-                    cfMetadataBuilder.addStaticColumn(colDef.name, colDef.cellValueType());
-                    break;
-                default:
-                    cfMetadataBuilder.addRegularColumn(colDef.name, colDef.cellValueType());
-            }
-        }
-
-        cfMetadataBuilder.withPartitioner(Murmur3Partitioner.instance);
-        final CFMetaData cfm = cfMetadataBuilder.build();
-        cfm.compression(CompressionParams.DEFAULT);
-
-        return cfm;
-    }
-
-
-    private static SSTableWriter createSSTableWriter(final Descriptor inputSSTableDescriptor,
-                                                     final CFMetaData outCfmMetaData,
-                                                     final org.apache.cassandra.io.sstable.format.SSTableReader inputSstable) {
-        final String sstableDirectory = System.getProperty("user.dir") + "/cassandra/compresseddata";
-        LOGGER.info("Output directory: " + sstableDirectory);
-
-        final File outputDirectory = new File(sstableDirectory + File.separatorChar
-            + inputSSTableDescriptor.ksname
-            + File.separatorChar + inputSSTableDescriptor.cfname);
-
-        if (!outputDirectory.exists() && !outputDirectory.mkdirs()) {
-            throw new FSWriteError(new IOException("failed to create tmp directory"),
-                outputDirectory.getAbsolutePath());
-        }
-
-        final SSTableFormat.Type sstableFormat = SSTableFormat.Type.BIG;
-
-        final BigTableWriter writer = new BigTableWriter(
-            new Descriptor(
-                sstableFormat.info.getLatestVersion().getVersion(),
-                outputDirectory.getAbsolutePath(),
-                inputSSTableDescriptor.ksname, inputSSTableDescriptor.cfname,
-                inputSSTableDescriptor.generation,
-                sstableFormat),
-            inputSstable.getTotalRows(), 0L, outCfmMetaData,
-            new MetadataCollector(outCfmMetaData.comparator)
-                .sstableLevel(inputSstable.getSSTableMetadata().sstableLevel),
-            new SerializationHeader(true,
-                outCfmMetaData, outCfmMetaData.partitionColumns(),
-                org.apache.cassandra.db.rows.EncodingStats.NO_STATS));
-
-        return writer;
     }
 
 }
