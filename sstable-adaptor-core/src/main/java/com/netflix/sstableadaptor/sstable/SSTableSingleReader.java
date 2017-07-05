@@ -47,7 +47,7 @@ import java.util.*;
  *
  *  @author mdo
  */
-public class SSTableReader {
+public class SSTableSingleReader {
     private String fileLocation;
     private long fileLength;
     private int version;  //sstable version according to C*
@@ -67,18 +67,34 @@ public class SSTableReader {
 
     private CFMetaData cfMetaData;
 
-    //TODO: need to make it to support SSTable writer too
     /**
-     *  Constructor.
+     *  Constructing a reader instance to take in a location for the file and set the
+     *  rest by the info found in the file and file path
      *  @param filePath location of the sstable file
      *  @throws IOException when file location is not valid
      */
-    public SSTableReader(final String filePath) throws IOException {
+    public SSTableSingleReader(final String filePath) throws IOException {
         this(filePath, Collections.<String>emptyList(), Collections.<String>emptyList());
     }
 
     /**
-     *  Constructor.
+     *  Constructing a reader instance to take in additional list of partition key names
+     *  and clustering key names.
+     *  @param filePath location of the sstable file
+     *  @param partitionKeyNames list of partition key names
+     *  @param clustringKeyNames list of clustering key names
+     *  @throws IOException when file location is not valid
+     */
+    public SSTableSingleReader(final String filePath,
+                               final List<String> partitionKeyNames,
+                               final List<String> clustringKeyNames) throws IOException {
+        this(filePath, "", "", partitionKeyNames, clustringKeyNames);
+    }
+
+    /**
+     *  Constructing a reader instance to take in additional list of partition key names
+     *  and clustering key names and overrided the keyspace and table name
+     *  with the supplied parameters instead of pulling them out from the file path.
      *  @param filePath location of the sstable file
      *  @param keyspaceName keyspace name
      *  @param tableName table name
@@ -86,27 +102,14 @@ public class SSTableReader {
      *  @param clustringKeyNames list of clustering key names
      *  @throws IOException when file location is not valid
      */
-    public SSTableReader(final String filePath,
-                         final String keyspaceName,
-                         final String tableName,
-                         final List<String> partitionKeyNames,
-                         final List<String> clustringKeyNames) throws IOException {
+    public SSTableSingleReader(final String filePath,
+                               final String keyspaceName,
+                               final String tableName,
+                               final List<String> partitionKeyNames,
+                               final List<String> clustringKeyNames) throws IOException {
         this.fileLocation = filePath;
 
         initialization(keyspaceName, tableName, partitionKeyNames, clustringKeyNames);
-    }
-
-    /**
-     *  Constructor.
-     *  @param filePath location of the sstable file
-     *  @param partitionKeyNames list of partition key names
-     *  @param clustringKeyNames list of clustering key names
-     *  @throws IOException when file location is not valid
-     */
-    public SSTableReader(final String filePath,
-                         final List<String> partitionKeyNames,
-                         final List<String> clustringKeyNames) throws IOException {
-        this(filePath, "", "", partitionKeyNames, clustringKeyNames);
     }
 
     /**
@@ -147,7 +150,7 @@ public class SSTableReader {
     }
 
     /**
-     * Return SSTableReader that represents the underneath sstable file.
+     * Return SSTableSingleReader that represents the underneath sstable file.
      *
      * @return IPartitioner
      */

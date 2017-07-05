@@ -1,6 +1,8 @@
 package com.netflix.sstableadaptor.config;
 
 
+import org.apache.cassandra.schema.CompressionParams;
+
 import java.util.Map;
 
 public class CassandraTable {
@@ -41,4 +43,7 @@ public class CassandraTable {
         this.others = others;
     }
 
+    public CompressionParams getCompressionParams() {
+        return CompressionParams.DEFAULT;
+    }
 }

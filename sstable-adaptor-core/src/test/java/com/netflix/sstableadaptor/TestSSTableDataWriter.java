@@ -18,7 +18,7 @@ package com.netflix.sstableadaptor;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import com.netflix.sstableadaptor.sstable.SSTableReader;
+import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
 import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
@@ -122,7 +122,7 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
 
         try {
             final CFMetaData inputCFMetaData =
-                SSTableReader.metaDataFromSSTable(inputSSTableFullPathFileName,
+                SSTableSingleReader.metaDataFromSSTable(inputSSTableFullPathFileName,
                                                             "casspactor",
                                                             "bills_nc",
                                                             Collections.<String>emptyList(),
@@ -155,7 +155,7 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
         final String inputSSTableFullPathFileName = DATA_DIR + "bills_compress/mc-6-big-Data.db";
         final Descriptor descriptor = Descriptor.fromFilename(inputSSTableFullPathFileName);
         final CFMetaData inputCFMetaData =
-            SSTableReader.metaDataFromSSTable(inputSSTableFullPathFileName,
+            SSTableSingleReader.metaDataFromSSTable(inputSSTableFullPathFileName,
                                                         "casspactor",
                                                         "bills_compress",
                                                         Collections.<String>emptyList(),

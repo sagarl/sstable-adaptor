@@ -1,7 +1,7 @@
 package com.netflix.sstableadaptor;
 
 
-import com.netflix.sstableadaptor.sstable.SSTableReader;
+import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
 import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
@@ -30,7 +30,7 @@ public class StandaloneRunner {
 
         try {
             final CFMetaData inputCFMetaData =
-                    SSTableReader.metaDataFromSSTable(inputSSTableFullPathFileName,
+                    SSTableSingleReader.metaDataFromSSTable(inputSSTableFullPathFileName,
                             "casspactor",
                             "bills_nc",
                             Collections.<String>emptyList(),

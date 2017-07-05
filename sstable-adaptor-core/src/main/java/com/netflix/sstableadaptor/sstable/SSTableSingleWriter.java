@@ -22,14 +22,14 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-public class SSTableWriter<T extends UnfilteredRowIterator> {
+public class SSTableSingleWriter<T extends UnfilteredRowIterator> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SSTableWriter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SSTableSingleWriter.class);
     private String filePath;
     private CassandraTable cassTable;
     private String outLocation;
 
-    public SSTableWriter(String filePath, CassandraTable cassTable, String outLocation) {
+    public SSTableSingleWriter(String filePath, CassandraTable cassTable, String outLocation) {
         this.filePath = filePath;
         this.cassTable = cassTable;
         this.outLocation = outLocation;
@@ -83,7 +83,7 @@ public class SSTableWriter<T extends UnfilteredRowIterator> {
     private CFMetaData setCFMetadataWithParams(CFMetaData cFMetaData,
                                         String ks,
                                         String table) {
-        cFMetaData.compression(CompressionParams.DEFAULT);
+        cFMetaData.compression(cassTable.getCompressionParams());
         return cFMetaData;
     }
 

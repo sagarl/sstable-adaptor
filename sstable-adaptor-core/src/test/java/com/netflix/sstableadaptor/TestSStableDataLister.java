@@ -18,7 +18,7 @@ package com.netflix.sstableadaptor;
 
 
 import com.netflix.sstableadaptor.sstable.SSTableIterator;
-import com.netflix.sstableadaptor.sstable.SSTableReader;
+import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
 import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.rows.Cell;
@@ -148,16 +148,16 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
         int counter = 0;
 
         try {
-            final SSTableReader ssTableReader =
-                        new SSTableReader(inputSSTableFullPathFileName);
+            final SSTableSingleReader SSTableSingleReader =
+                        new SSTableSingleReader(inputSSTableFullPathFileName);
             final ISSTableScanner currentScanner =
-                        ssTableReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
+                        SSTableSingleReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
 
             while (currentScanner.hasNext()) {
                 LOGGER.info("===================111==================================");
                 final UnfilteredRowIterator unfilteredRowIterator = currentScanner.next();
                 final ByteBuffer partitionKey = unfilteredRowIterator.partitionKey().getKey();
-                final CFMetaData cfMetaData = ssTableReader.getCfMetaData();
+                final CFMetaData cfMetaData = SSTableSingleReader.getCfMetaData();
                 LOGGER.info("Partition key: " + new String(unfilteredRowIterator.partitionKey().getKey().array()));
 
                 final List<Object> list = SSTableUtils.parsePrimaryKey(cfMetaData, partitionKey);
@@ -204,8 +204,8 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
     @Test
     public void testCasspactorIterator() throws IOException {
         final String inputSSTableFullPathFileName = DATA_DIR + "bills_compress/mc-6-big-Data.db";
-        final SSTableReader reader1 = new SSTableReader(inputSSTableFullPathFileName);
-        final SSTableReader reader2 = new SSTableReader(inputSSTableFullPathFileName);
+        final SSTableSingleReader reader1 = new SSTableSingleReader(inputSSTableFullPathFileName);
+        final SSTableSingleReader reader2 = new SSTableSingleReader(inputSSTableFullPathFileName);
         final CFMetaData cfMetaData = reader1.getCfMetaData();
 
         final List<ISSTableScanner> scanners = new ArrayList<>();

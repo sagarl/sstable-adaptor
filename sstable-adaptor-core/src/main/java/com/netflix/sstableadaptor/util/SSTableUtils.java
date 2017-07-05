@@ -17,9 +17,8 @@
 package com.netflix.sstableadaptor.util;
 
 
-import com.netflix.sstableadaptor.StandaloneRunner;
 import com.netflix.sstableadaptor.config.CassandraTable;
-import com.netflix.sstableadaptor.sstable.SSTableReader;
+import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.db.SerializationHeader;
@@ -81,7 +80,7 @@ public final class SSTableUtils {
                                             CassandraTable cassTable,
                                             List<String> partitionKeyNames,
                                             List<String> clusteringKeyNames) throws IOException {
-        return SSTableReader.metaDataFromSSTable(dbFile,
+        return SSTableSingleReader.metaDataFromSSTable(dbFile,
                 cassTable.getKeyspaceName(),
                 cassTable.getTableName(),
                 partitionKeyNames,
