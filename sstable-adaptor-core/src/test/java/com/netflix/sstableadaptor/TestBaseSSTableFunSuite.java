@@ -28,7 +28,7 @@ import java.util.Map;
 public class TestBaseSSTableFunSuite {
 
     /** Base directory location. */
-    public static final String DATA_DIR = "src/test/resources/data/";
+    public static final String DATA_DIR = "src/test/resources/data/keyspace1/";
 
     /** S3 location to contain the input sstable files */
     public static final String S3_INPUT_DIR = System.getenv("S3_INPUT_DIR");

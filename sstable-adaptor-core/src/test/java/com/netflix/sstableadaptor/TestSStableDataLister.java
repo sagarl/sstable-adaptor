@@ -148,16 +148,16 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
         int counter = 0;
 
         try {
-            final SSTableSingleReader SSTableSingleReader =
+            final SSTableSingleReader sstableSingleReader =
                         new SSTableSingleReader(inputSSTableFullPathFileName);
             final ISSTableScanner currentScanner =
-                        SSTableSingleReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
+                    sstableSingleReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
 
             while (currentScanner.hasNext()) {
                 LOGGER.info("===================111==================================");
                 final UnfilteredRowIterator unfilteredRowIterator = currentScanner.next();
                 final ByteBuffer partitionKey = unfilteredRowIterator.partitionKey().getKey();
-                final CFMetaData cfMetaData = SSTableSingleReader.getCfMetaData();
+                final CFMetaData cfMetaData = sstableSingleReader.getCfMetaData();
                 LOGGER.info("Partition key: " + new String(unfilteredRowIterator.partitionKey().getKey().array()));
 
                 final List<Object> list = SSTableUtils.parsePrimaryKey(cfMetaData, partitionKey);

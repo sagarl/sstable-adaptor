@@ -151,4 +151,13 @@ public final class SSTableUtils {
         return cfm;
     }
 
+
+    public static void main(String[] args) {
+         String filePath = "s3://netflix-dataoven-test-users/mdo/sstabledata/casspactor/bills_compressed/mc-1-Big-Data.db";
+
+         String[] ss = filePath.split(String.valueOf(File.separatorChar));
+         System.out.println("ss = " + ss.length);
+         System.out.println("s[7] = " + ss[7]);
+    }
+
 }

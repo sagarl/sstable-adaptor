@@ -26,6 +26,7 @@ import org.apache.cassandra.io.sstable.format.Version;
 import org.apache.cassandra.io.sstable.metadata.IMetadataSerializer;
 import org.apache.cassandra.io.sstable.metadata.MetadataSerializer;
 import org.apache.cassandra.utils.Pair;
+import org.apache.directory.api.util.Strings;
 
 import java.io.File;
 import java.util.*;
@@ -43,6 +44,7 @@ import static org.apache.cassandra.io.sstable.Component.separator;
 public class Descriptor
 {
     public static String TMP_EXT = ".tmp";
+    private static String EMPTY_STRING = "";
 
     /** canonicalized path to the directory where SSTable resides */
     public final String directory;
@@ -176,16 +178,14 @@ public class Descriptor
     }
 
     private static String getParentDir(String filePath) {
-        return filePath.substring(0, filePath.lastIndexOf('/'));
+        if (Strings.isEmpty(filePath))
+            return EMPTY_STRING;
+
+        return filePath.substring(0, filePath.lastIndexOf(File.separatorChar));
     }
 
     public static Descriptor fromFilename(String filename, boolean skipComponent)
     {
-        //TODO: Minh: fix this to support URI
-        //File file = new File(filename).getAbsoluteFile();
-        //File file = new File(filename);
-
-
         return fromFilename(getParentDir(filename), getName(filename), skipComponent).left;
         //return fromFilename(new File(getParentDir(filename)), file.getName(), skipComponent).left;
         //return fromFilename(file.getParentFile(), file.getName(), skipComponent).left;
@@ -194,6 +194,9 @@ public class Descriptor
     private static String getName(String path) {
         int index = path.lastIndexOf(File.separatorChar);
         //if (index < prefixLength) return path.substring(prefixLength);
+        if (index == -1)
+            return EMPTY_STRING;
+
         return path.substring(index + 1);
     }
 
@@ -253,7 +256,10 @@ public class Descriptor
         Version version = fmt.info.getVersion(nexttok);
 
         // ks/cf names
-        String ksname = "", cfname = "";
+        String cfname = getName(directory);
+        String ksname = getName(getParentDir(directory));
+
+
         if (!version.hasNewFileName())
         {
             cfname = tokenStack.pop();

@@ -351,4 +351,36 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
         LOGGER.info("\tStatic key?: " + colDef.isStatic());
         LOGGER.info("+++++++++++++++++++++++++++++++++++++");
     }
+
+    /**
+     *  Test on reading table for keyspace and table names.
+     */
+    @Test
+    public void testConstructingKeyspaceAndTable() {
+        final String inputSSTableFullPathFileName = DATA_DIR + "compressed_bills/mc-2-big-Data.db";
+        Throwable throwable = null;
+
+        try {
+            SSTableSingleReader sstableSingleReader =
+                    new SSTableSingleReader(inputSSTableFullPathFileName, "ks1", "table1");
+
+            Assert.assertEquals("ks1", sstableSingleReader.getCfMetaData().ksName);
+            Assert.assertEquals("table1", sstableSingleReader.getCfMetaData().cfName);
+            Assert.assertEquals(inputSSTableFullPathFileName, sstableSingleReader.getSstableReader().getFilename());
+
+            sstableSingleReader =
+                    new SSTableSingleReader(inputSSTableFullPathFileName);
+
+            System.out.println("+++++++++++++++++++++ = " + sstableSingleReader.getCfMetaData().ksName);
+            System.out.println("+++++++++++++++++++++ = " + sstableSingleReader.getCfMetaData().cfName);
+            System.out.println("+++++++++++++++++++++ = " + sstableSingleReader.getSstableReader().getFilename());
+
+
+        } catch (IOException e) {
+            e.printStackTrace(System.err);
+            throwable = e;
+        }
+
+        Assert.assertEquals(null, throwable);
+    }
 }

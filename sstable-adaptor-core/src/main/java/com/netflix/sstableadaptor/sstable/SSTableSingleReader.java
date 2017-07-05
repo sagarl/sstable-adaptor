@@ -78,6 +78,16 @@ public class SSTableSingleReader {
     }
 
     /**
+     *  Constructing a reader instance to take in a location for the file, keyspace and table names.
+     *  @param filePath location of the sstable file
+     *  @throws IOException when file location is not valid
+     */
+    public SSTableSingleReader(final String filePath, String keyspaceName, String tableName) throws IOException {
+        this(filePath, keyspaceName, tableName, Collections.<String>emptyList(), Collections.<String>emptyList());
+    }
+
+
+    /**
      *  Constructing a reader instance to take in additional list of partition key names
      *  and clustering key names.
      *  @param filePath location of the sstable file
