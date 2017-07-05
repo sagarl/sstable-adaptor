@@ -370,11 +370,8 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
 
             sstableSingleReader =
                     new SSTableSingleReader(inputSSTableFullPathFileName);
-
-            System.out.println("+++++++++++++++++++++ = " + sstableSingleReader.getCfMetaData().ksName);
-            System.out.println("+++++++++++++++++++++ = " + sstableSingleReader.getCfMetaData().cfName);
-            System.out.println("+++++++++++++++++++++ = " + sstableSingleReader.getSstableReader().getFilename());
-
+            Assert.assertEquals("keyspace1", sstableSingleReader.getCfMetaData().ksName);
+            Assert.assertEquals("compressed_bills", sstableSingleReader.getCfMetaData().cfName);
 
         } catch (IOException e) {
             e.printStackTrace(System.err);
