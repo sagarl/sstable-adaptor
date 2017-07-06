@@ -7,6 +7,7 @@ import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
+import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.format.SSTableWriter;
 import org.apache.cassandra.io.util.FileUtils;
 import org.slf4j.Logger;
@@ -30,14 +31,10 @@ public class StandaloneRunner {
 
         try {
             final CFMetaData inputCFMetaData =
-                    SSTableSingleReader.metaDataFromSSTable(inputSSTableFullPathFileName,
-                            "casspactor",
-                            "bills_nc",
-                            Collections.<String>emptyList(),
-                            Collections.<String>emptyList());
+                    SSTableUtils.metaDataFromSSTable(inputSSTableFullPathFileName);
             final CFMetaData outputCFMetaData = SSTableUtils.createNewCFMetaData(inputSSTableDescriptor, inputCFMetaData);
 
-            final org.apache.cassandra.io.sstable.format.SSTableReader inputSStable = org.apache.cassandra.io.sstable.format.SSTableReader.openNoValidation(inputSSTableDescriptor, inputCFMetaData);
+            final SSTableReader inputSStable = SSTableReader.openNoValidation(inputSSTableDescriptor, inputCFMetaData);
             writer = SSTableUtils.createSSTableWriter(inputSSTableDescriptor, outputCFMetaData, inputSStable);
 
             final ISSTableScanner currentScanner = inputSStable.getScanner();

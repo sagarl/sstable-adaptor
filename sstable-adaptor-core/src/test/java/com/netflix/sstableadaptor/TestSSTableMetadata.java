@@ -358,7 +358,6 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
     @Test
     public void testConstructingKeyspaceAndTable() {
         final String inputSSTableFullPathFileName = DATA_DIR + "compressed_bills/mc-2-big-Data.db";
-        Throwable throwable = null;
 
         try {
             SSTableSingleReader sstableSingleReader =
@@ -374,10 +373,7 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
             Assert.assertEquals("compressed_bills", sstableSingleReader.getCfMetaData().cfName);
 
         } catch (IOException e) {
-            e.printStackTrace(System.err);
-            throwable = e;
+           Assert.fail(e.getMessage());
         }
-
-        Assert.assertEquals(null, throwable);
     }
 }
