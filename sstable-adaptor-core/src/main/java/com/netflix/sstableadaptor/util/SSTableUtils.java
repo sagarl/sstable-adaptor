@@ -30,6 +30,7 @@ import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
+import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.format.SSTableWriter;
 import org.apache.cassandra.io.sstable.format.big.BigTableWriter;
 import org.apache.cassandra.io.sstable.metadata.MetadataCollector;
@@ -98,7 +99,7 @@ public final class SSTableUtils {
 
     public static SSTableWriter createSSTableWriter(final Descriptor inputSSTableDescriptor,
                                                      final CFMetaData outCfmMetaData,
-                                                     final org.apache.cassandra.io.sstable.format.SSTableReader inputSstable) {
+                                                     final SSTableReader inputSSTable) {
         final String sstableDirectory = System.getProperty("user.dir") + "/cassandra/compresseddata";
         LOGGER.info("Output directory: " + sstableDirectory);
 
@@ -120,9 +121,9 @@ public final class SSTableUtils {
                         inputSSTableDescriptor.ksname, inputSSTableDescriptor.cfname,
                         inputSSTableDescriptor.generation,
                         sstableFormat),
-                inputSstable.getTotalRows(), 0L, outCfmMetaData,
+                inputSSTable.getTotalRows(), 0L, outCfmMetaData,
                 new MetadataCollector(outCfmMetaData.comparator)
-                        .sstableLevel(inputSstable.getSSTableMetadata().sstableLevel),
+                        .sstableLevel(inputSSTable.getSSTableMetadata().sstableLevel),
                 new SerializationHeader(true,
                         outCfmMetaData, outCfmMetaData.partitionColumns(),
                         org.apache.cassandra.db.rows.EncodingStats.NO_STATS));

@@ -17,30 +17,29 @@
 package com.netflix.sstableadaptor.sstable;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.netflix.sstableadaptor.config.CassandraTable;
 import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
-import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.DecoratedKey;
-import org.apache.cassandra.db.SerializationHeader;
-import org.apache.cassandra.db.marshal.AbstractType;
-import org.apache.cassandra.db.marshal.CompositeType;
-import org.apache.cassandra.db.marshal.UTF8Type;
-import org.apache.cassandra.dht.*;
+import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.dht.Murmur3Partitioner;
+import org.apache.cassandra.dht.RandomPartitioner;
+import org.apache.cassandra.dht.Range;
+import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.IndexSummary;
-import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
-import org.apache.cassandra.io.sstable.metadata.MetadataType;
+import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
 import org.apache.cassandra.io.util.HadoopFileUtils;
 import org.apache.cassandra.utils.EstimatedHistogram;
-import org.apache.cassandra.utils.FBUtilities;
-import org.apache.directory.api.util.Strings;
 
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  *  This is the SSTable Adaptor's reader that can help to
@@ -79,6 +78,19 @@ public class SSTableSingleReader {
     }
 
     /**
+     *  Constructing a reader instance to take in a location for the file and set the
+     *  rest by the info found in the file and file path
+     *  @param filePath location of the sstable file
+     *  @throws IOException when file location is not valid
+     */
+    public SSTableSingleReader(final String filePath, CassandraTable cassandraTable) throws IOException {
+        this(filePath, cassandraTable.getKeyspaceName(),
+                cassandraTable.getTableName(),
+                cassandraTable.getPartitionKeyNames(),
+                cassandraTable.getClusteringKeyNames());
+    }
+
+    /**
      *  Constructing a reader instance to take in a location for the file, keyspace and table names.
      *  @param filePath location of the sstable file
      *  @throws IOException when file location is not valid
@@ -93,13 +105,13 @@ public class SSTableSingleReader {
      *  and clustering key names.
      *  @param filePath location of the sstable file
      *  @param partitionKeyNames list of partition key names
-     *  @param clustringKeyNames list of clustering key names
+     *  @param clusteringKeyNames list of clustering key names
      *  @throws IOException when file location is not valid
      */
     public SSTableSingleReader(final String filePath,
                                final List<String> partitionKeyNames,
-                               final List<String> clustringKeyNames) throws IOException {
-        this(filePath, "", "", partitionKeyNames, clustringKeyNames);
+                               final List<String> clusteringKeyNames) throws IOException {
+        this(filePath, "", "", partitionKeyNames, clusteringKeyNames);
     }
 
     /**
@@ -137,7 +149,7 @@ public class SSTableSingleReader {
                                 final List<String> clusteringKeyNames) throws IOException {
         descriptor = Descriptor.fromFilename(HadoopFileUtils.normalizeFileName(fileLocation));
         cfMetaData = SSTableUtils.metadataFromSSTable(descriptor, keyspaceName, tableName, partitionKeyNames, clusteringKeyNames);
-        sstableReader = org.apache.cassandra.io.sstable.format.SSTableReader.openNoValidation(descriptor, cfMetaData);
+        sstableReader = SSTableReader.openNoValidation(descriptor, cfMetaData);
         fileLength = sstableReader.onDiskLength();
         version = descriptor.version.correspondingMessagingVersion();
         generation = descriptor.generation;
@@ -150,6 +162,14 @@ public class SSTableSingleReader {
         stats = sstableReader.getSSTableMetadata();
         estimatedPartitionSize = sstableReader.getEstimatedPartitionSize();
         indexSummary = sstableReader.getIndexSummary();
+    }
+
+    /**
+     * Return the Descriptor associated to this sstable
+     * @return Descriptor
+     */
+    public Descriptor getDescriptor() {
+        return descriptor;
     }
 
     /**

@@ -18,6 +18,9 @@ package com.netflix.sstableadaptor;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import com.netflix.sstableadaptor.config.CassandraTable;
+import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
+import com.netflix.sstableadaptor.sstable.SSTableSingleWriter;
 import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
@@ -35,6 +38,7 @@ import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.SSTableTxnWriter;
 import org.apache.cassandra.io.sstable.format.SSTableFlushObserver;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
+import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.format.SSTableWriter;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.utils.Pair;
@@ -120,18 +124,16 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
         SSTableWriter writer = null;
 
         try {
-            final CFMetaData inputCFMetaData =
-                SSTableUtils.metaDataFromSSTable(inputSSTableFullPathFileName,
-                                                            "casspactor",
-                                                            "bills_nc",
-                                                            Collections.<String>emptyList(),
-                                                            Collections.<String>emptyList());
+            SSTableSingleReader reader = new SSTableSingleReader(inputSSTableFullPathFileName,
+                                                                 "casspactor",
+                                                                 "bills_nc");
+            final CFMetaData inputCFMetaData = reader.getCfMetaData();
+            final ISSTableScanner currentScanner = reader.getSSTableScanner();
+            final SSTableReader inputSStable = reader.getSstableReader();
+
+            //Create writer
             final CFMetaData outputCFMetaData = SSTableUtils.createNewCFMetaData(inputSSTableDescriptor, inputCFMetaData);
-
-            final org.apache.cassandra.io.sstable.format.SSTableReader inputSStable = org.apache.cassandra.io.sstable.format.SSTableReader.openNoValidation(inputSSTableDescriptor, inputCFMetaData);
             writer = SSTableUtils.createSSTableWriter(inputSSTableDescriptor, outputCFMetaData, inputSStable);
-
-            final ISSTableScanner currentScanner = inputSStable.getScanner();
 
             while (currentScanner.hasNext()) {
                 final UnfilteredRowIterator row = currentScanner.next();
@@ -249,6 +251,26 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
         public void complete() {
             LOGGER.info("Complete writing with the last key: " + new String(currentKey.left.array()));
         }
+    }
+
+
+    @Test
+    public void testConvertingSSTable() throws IOException {
+        final String inputFile = DATA_DIR + "bills_compress/mc-6-big-Data.db";
+        final CFMetaData inputCFMetaData = SSTableUtils.metaDataFromSSTable(inputFile);
+        final CassandraTable cassandraTable = new CassandraTable.CassandraTableBuilder()
+                                                                .withClusterName("cass_share")
+                                                                .withKeyspaceName("casspactor")
+                                                                .withTableName("bills_compress")
+                                                                .build();
+        final String outputLocation = "/tmp";
+        final SSTableSingleWriter<UnfilteredRowIterator> writer =
+                new SSTableSingleWriter(inputCFMetaData, cassandraTable, outputLocation);
+
+        SSTableSingleReader reader = new SSTableSingleReader(inputFile, cassandraTable);
+        final ISSTableScanner currentScanner = reader.getSSTableScanner();
+
+        writer.write(currentScanner);
     }
 
 
