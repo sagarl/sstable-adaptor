@@ -16,10 +16,20 @@
 
 package com.netflix.sstableadaptor;
 
+import com.netflix.sstableadaptor.util.SSTableUtils;
+import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.db.rows.Cell;
+import org.apache.cassandra.db.rows.Row;
+import org.apache.cassandra.db.rows.UnfilteredRowIterator;
+import org.apache.cassandra.utils.ByteBufferUtil;
+import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -28,7 +38,8 @@ import java.util.Map;
 public class TestBaseSSTableFunSuite {
 
     /** Base directory location. */
-    public static final String DATA_DIR = "src/test/resources/data/keyspace1/";
+    public static final String CASS3_DATA_DIR = "src/test/resources/data/cass3/keyspace1/";
+    public static final String CASS21_DATA_DIR = "src/test/resources/data/cass2.1/keyspace1/";
 
     /** S3 location to contain the input sstable files */
     public static final String S3_INPUT_DIR = System.getenv("S3_INPUT_DIR");
@@ -71,5 +82,47 @@ public class TestBaseSSTableFunSuite {
      */
     protected void fakeTest() {
 
+    }
+
+    /**
+     *  Print out a row with details.
+     */
+    protected int printRowDetails(final CFMetaData cfMetaData, final UnfilteredRowIterator unfilteredRowIterator) {
+        int counter = 0;
+        final ByteBuffer partitionKey = unfilteredRowIterator.partitionKey().getKey();
+
+        LOGGER.info("===================New Row==================================");
+        LOGGER.info("Partition key: " + new String(unfilteredRowIterator.partitionKey().getKey().array()));
+
+        final List<Object> list = SSTableUtils.parsePrimaryKey(cfMetaData, partitionKey);
+        Assert.assertEquals(cfMetaData.partitionKeyColumns().size(), list.size());
+        for (Object val : list) {
+            LOGGER.info("\tPartition key val ::::: " + val);
+        }
+
+        final Row staticRow = unfilteredRowIterator.staticRow();
+        LOGGER.info("static info: " + staticRow.isStatic());
+
+        LOGGER.info("\tStatic: " + staticRow);
+
+        while (unfilteredRowIterator.hasNext()) {
+            final Row row = (Row) unfilteredRowIterator.next();
+            LOGGER.info("\t------------------New sub-row ------------------------------");
+            LOGGER.info("Clustering size: " + row.clustering().size());
+            for(int k=0; k<row.clustering().size(); k++)
+                LOGGER.info("\tClustering: " + ByteBufferUtil.toInt(row.clustering().get(k)));
+
+            final Iterable<Cell> cells = row.cells();
+            final Iterator<Cell> cellsIterator = cells.iterator();
+            LOGGER.info("\tCells: ");
+            while (cellsIterator.hasNext()) {
+                final Cell cell = cellsIterator.next();
+                LOGGER.info("Type: " + cell.column().type);
+                LOGGER.info("\t\t" + cell.toString());
+            }
+            counter++;
+        }
+
+        return counter;
     }
 }

@@ -65,7 +65,7 @@ public class TestSSTableUtils extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testParsingCompositeKey() throws IOException {
-        final String inputSSTableFullPathFileName = DATA_DIR + "compressed_bills/mc-2-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "compressed_bills/mc-2-big-Data.db";
 
         final SSTableSingleReader SSTableSingleReader =
                                 new SSTableSingleReader(inputSSTableFullPathFileName);

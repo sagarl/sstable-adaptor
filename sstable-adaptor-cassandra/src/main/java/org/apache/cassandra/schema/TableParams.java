@@ -49,7 +49,9 @@ public final class TableParams
         READ_REPAIR_CHANCE,
         SPECULATIVE_RETRY,
         CRC_CHECK_CHANCE,
-        CDC;
+        CDC,
+        KEYSPACE_NAME,
+        PARTITIONER_CLASS;
 
         @Override
         public String toString()

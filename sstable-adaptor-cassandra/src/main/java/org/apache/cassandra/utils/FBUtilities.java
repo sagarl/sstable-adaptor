@@ -400,6 +400,11 @@ public class FBUtilities
         return newPartitioner(partitionerClassName, Optional.empty());
     }
 
+    public static IPartitioner newPartitioner(ValidationMetadata validationMetadata, SerializationHeader.Component header)
+    {
+        return newPartitioner(validationMetadata.partitioner, Optional.of(header.getKeyType()));
+    }
+
     @VisibleForTesting
     static IPartitioner newPartitioner(String partitionerClassName, Optional<AbstractType<?>> comparator) throws ConfigurationException
     {

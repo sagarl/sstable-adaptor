@@ -83,7 +83,7 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testAccessSSTableMetadataCase1() throws IOException {
-        final String inputSSTableFullPathFileName = DATA_DIR + "bills_compress/mc-6-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
         final SSTableSingleReader SSTableSingleReader =
                    new SSTableSingleReader(inputSSTableFullPathFileName);
 
@@ -229,7 +229,7 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testAccessSSTableMetadataCase2() throws IOException {
-        final String inputSSTableFullPathFileName = DATA_DIR + "compressed_bills/mc-2-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "compressed_bills/mc-2-big-Data.db";
         final SSTableSingleReader SSTableSingleReader =
             new SSTableSingleReader(inputSSTableFullPathFileName);
 
@@ -357,7 +357,7 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testConstructingKeyspaceAndTable() {
-        final String inputSSTableFullPathFileName = DATA_DIR + "compressed_bills/mc-2-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "compressed_bills/mc-2-big-Data.db";
 
         try {
             SSTableSingleReader sstableSingleReader =
