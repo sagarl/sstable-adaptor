@@ -77,6 +77,12 @@ public class SSTableSingleReader {
         this(filePath, Collections.<String>emptyList(), Collections.<String>emptyList());
     }
 
+    public SSTableSingleReader(final String filePath, CFMetaData cfMetaData) throws IOException {
+        this.fileLocation = filePath;
+        initialization(cfMetaData);
+    }
+
+
     /**
      *  Constructing a reader instance to take in a location for the file and set the
      *  rest by the info found in the file and file path
@@ -143,12 +149,40 @@ public class SSTableSingleReader {
      * @param clusteringKeyNames list of clustering key names
      * @throws IOException when file location is not valid
      */
+    private void initialization(final CFMetaData cfMetaData) throws IOException {
+        descriptor = Descriptor.fromFilename(HadoopFileUtils.normalizeFileName(fileLocation));
+        this.cfMetaData = cfMetaData;
+        sstableReader = SSTableReader.openNoValidation(descriptor, cfMetaData);
+        fileLength = sstableReader.onDiskLength();
+        version = descriptor.version.correspondingMessagingVersion();
+        generation = descriptor.generation;
+        keyValidator = cfMetaData.getKeyValidator();
+        clusteringComparator = cfMetaData.getKeyValidatorAsClusteringComparator();
+        first = sstableReader.first;
+        last = sstableReader.last;
+        totalRows = sstableReader.getTotalRows();
+        partitioner = cfMetaData.partitioner;
+        stats = sstableReader.getSSTableMetadata();
+        estimatedPartitionSize = sstableReader.getEstimatedPartitionSize();
+        indexSummary = sstableReader.getIndexSummary();
+    }
+
+    /**
+     * Initialization.
+     * @param keyspaceName keyspace name
+     * @param tableName table name
+     * @param partitionKeyNames list of partition key names
+     * @param clusteringKeyNames list of clustering key names
+     * @throws IOException when file location is not valid
+     */
     private void initialization(final String keyspaceName,
                                 final String tableName,
                                 final List<String> partitionKeyNames,
                                 final List<String> clusteringKeyNames) throws IOException {
         descriptor = Descriptor.fromFilename(HadoopFileUtils.normalizeFileName(fileLocation));
         cfMetaData = SSTableUtils.metadataFromSSTable(descriptor, keyspaceName, tableName, partitionKeyNames, clusteringKeyNames);
+        //cfMetaData = SSTableUtils.metadataFromSSTableHacked(descriptor, keyspaceName, tableName, partitionKeyNames, clusteringKeyNames);
+
         sstableReader = SSTableReader.openNoValidation(descriptor, cfMetaData);
         fileLength = sstableReader.onDiskLength();
         version = descriptor.version.correspondingMessagingVersion();

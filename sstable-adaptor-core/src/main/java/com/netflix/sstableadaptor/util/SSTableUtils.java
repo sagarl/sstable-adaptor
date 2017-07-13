@@ -17,13 +17,18 @@
 package com.netflix.sstableadaptor.util;
 
 
+import com.datastax.driver.core.Row;
 import com.netflix.sstableadaptor.config.CassandraTable;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.SerializationHeader;
 import org.apache.cassandra.db.marshal.AbstractType;
+import org.apache.cassandra.db.marshal.AsciiType;
 import org.apache.cassandra.db.marshal.CompositeType;
+import org.apache.cassandra.db.marshal.Int32Type;
+import org.apache.cassandra.db.marshal.IntegerType;
+import org.apache.cassandra.db.marshal.ReversedType;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
@@ -36,7 +41,11 @@ import org.apache.cassandra.io.sstable.format.big.BigTableWriter;
 import org.apache.cassandra.io.sstable.metadata.MetadataCollector;
 import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
 import org.apache.cassandra.io.sstable.metadata.MetadataType;
+import org.apache.cassandra.io.sstable.metadata.ValidationMetadata;
+import org.apache.cassandra.schema.CQLTypeParser;
 import org.apache.cassandra.schema.CompressionParams;
+import org.apache.cassandra.schema.Types;
+import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.directory.api.util.Strings;
 import org.slf4j.Logger;
@@ -51,6 +60,8 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  *  Utilities on a sstable file.
@@ -161,6 +172,125 @@ public final class SSTableUtils {
         return cfm;
     }
 
+
+    private static ColumnDefinition createDefinitionFromRow(String keyspace, String table, Types types,
+                                                            AbstractType<?> type,
+                                                            ColumnIdentifier name, int position,
+                                                            ColumnDefinition.Kind kind)
+    {
+        //ColumnDefinition.ClusteringOrder order = ColumnDefinition.ClusteringOrder.valueOf(row.getString("clustering_order").toUpperCase());
+        //AbstractType<?> type = CQLTypeParser.parse(keyspace, row.getString("type"), types);
+        //if (order == ColumnDefinition.ClusteringOrder.DESC)
+        //    type = ReversedType.getInstance(type);
+
+        return new ColumnDefinition(keyspace, table, name, type, position, kind);
+    }
+
+    //For thrift table
+    public static CFMetaData metadataFromSSTableHacked(final Descriptor desc,
+                                                 final String keyspaceName,
+                                                 final String tableName,
+                                                 final List<String> partitionKeyNames,
+                                                 final List<String> clusteringKeyNames) throws IOException {
+
+        boolean isSuper = false; //flags.contains(CFMetaData.Flag.SUPER);
+        boolean isCounter = false; //flags.contains(CFMetaData.Flag.COUNTER);
+        boolean isDense = false; //flags.contains(CFMetaData.Flag.DENSE);
+        boolean isCompound = false;  //isView || flags.contains(CFMetaData.Flag.COMPOUND);
+
+        List<ColumnDefinition> defs = new ArrayList<>();
+
+        ColumnIdentifier key = new ColumnIdentifier("key", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, AsciiType.instance, key, -1, ColumnDefinition.Kind.PARTITION_KEY));
+
+        ColumnIdentifier email = new ColumnIdentifier("email", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, AsciiType.instance, email, -1, ColumnDefinition.Kind.REGULAR));
+
+        //ColumnIdentifier account_id = new ColumnIdentifier(ByteBufferUtil.bytes(("account_id")), AsciiType.instance);
+        ColumnIdentifier first_name = new ColumnIdentifier("first_name", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, AsciiType.instance, first_name, -1, ColumnDefinition.Kind.REGULAR));
+
+        //ColumnIdentifier amount = new ColumnIdentifier(ByteBufferUtil.bytes(("amount")), AsciiType.instance);
+        ColumnIdentifier last_name = new ColumnIdentifier("last_name", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, AsciiType.instance, last_name, -1, ColumnDefinition.Kind.REGULAR));
+
+        //ColumnIdentifier balance = new ColumnIdentifier(ByteBufferUtil.bytes(("balance")), AsciiType.instance);
+        ColumnIdentifier year_of_birth = new ColumnIdentifier("year_of_birth", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, Int32Type.instance, year_of_birth, -1, ColumnDefinition.Kind.REGULAR));
+
+
+        CFMetaData metadata = CFMetaData.create(keyspaceName,
+                tableName,
+                UUID.randomUUID(),
+                isDense,
+                isCompound,
+                isSuper,
+                isCounter,
+                false,
+                defs,
+                Murmur3Partitioner.instance);
+
+        return metadata;
+    }
+
+    public static CFMetaData metadataFromSSTableHacked1(final Descriptor desc,
+                                                       final String keyspaceName,
+                                                       final String tableName,
+                                                       final List<String> partitionKeyNames,
+                                                       final List<String> clusteringKeyNames) throws IOException {
+
+        boolean isSuper = false; //flags.contains(CFMetaData.Flag.SUPER);
+        boolean isCounter = false; //flags.contains(CFMetaData.Flag.COUNTER);
+        boolean isDense = false; //flags.contains(CFMetaData.Flag.DENSE);
+        boolean isCompound = true;  //isView || flags.contains(CFMetaData.Flag.COMPOUND);
+
+        List<ColumnDefinition> defs = new ArrayList<>();
+
+        ColumnIdentifier expense_id = new ColumnIdentifier("expense_id", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, Int32Type.instance, expense_id, 0, ColumnDefinition.Kind.CLUSTERING));
+
+        ColumnIdentifier item_id = new ColumnIdentifier("item_id", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, Int32Type.instance, item_id, 1, ColumnDefinition.Kind.CLUSTERING));
+
+        //ColumnIdentifier account_id = new ColumnIdentifier(ByteBufferUtil.bytes(("account_id")), AsciiType.instance);
+        ColumnIdentifier account_id = new ColumnIdentifier("account_id", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, AsciiType.instance, account_id, -1, ColumnDefinition.Kind.STATIC));
+
+        //ColumnIdentifier amount = new ColumnIdentifier(ByteBufferUtil.bytes(("amount")), AsciiType.instance);
+        ColumnIdentifier amount = new ColumnIdentifier("amount", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, Int32Type.instance, amount, -1, ColumnDefinition.Kind.REGULAR));
+
+        //ColumnIdentifier balance = new ColumnIdentifier(ByteBufferUtil.bytes(("balance")), AsciiType.instance);
+        ColumnIdentifier balance = new ColumnIdentifier("balance", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, Int32Type.instance, balance, -1, ColumnDefinition.Kind.STATIC));
+
+        //ColumnIdentifier name = new ColumnIdentifier(ByteBufferUtil.bytes(("name")), AsciiType.instance);
+        ColumnIdentifier name = new ColumnIdentifier("name", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, AsciiType.instance, name, -1, ColumnDefinition.Kind.REGULAR));
+
+        //ColumnIdentifier user = new ColumnIdentifier(ByteBufferUtil.bytes(("user")), AsciiType.instance);
+        ColumnIdentifier user = new ColumnIdentifier("user", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, AsciiType.instance, user, 0, ColumnDefinition.Kind.PARTITION_KEY));
+
+        //ColumnIdentifier email = new ColumnIdentifier(ByteBufferUtil.bytes(("email")), AsciiType.instance);
+        ColumnIdentifier email = new ColumnIdentifier("email", false);
+        defs.add(createDefinitionFromRow(keyspaceName, tableName, null, AsciiType.instance, email, 1, ColumnDefinition.Kind.PARTITION_KEY));
+
+
+        CFMetaData metadata = CFMetaData.create(keyspaceName,
+                tableName,
+                UUID.randomUUID(),
+                isDense,
+                isCompound,
+                isSuper,
+                isCounter,
+                false,
+                defs,
+                Murmur3Partitioner.instance);
+
+        return metadata;
+    }
+
     /**
      * Construct table schema from info stored in SSTable's Stats.db.
      *
@@ -181,30 +311,35 @@ public final class SSTableUtils {
             throw new IOException("pre-3.0 SSTable is not supported.");
         }
 
-        final EnumSet<MetadataType> types = EnumSet.of(MetadataType.STATS, MetadataType.HEADER);
+        final EnumSet<MetadataType> types = EnumSet.of(MetadataType.STATS, MetadataType.HEADER, MetadataType.VALIDATION);
         final Map<MetadataType, MetadataComponent> sstableMetadata =
                 desc.getMetadataSerializer().deserialize(desc, types);
+
+        ValidationMetadata validationMetadata = (ValidationMetadata) sstableMetadata.get(MetadataType.VALIDATION);
         final SerializationHeader.Component header =
                 (SerializationHeader.Component) sstableMetadata.get(MetadataType.HEADER);
-        final IPartitioner partitioner = FBUtilities.newPartitioner(desc);
+
+        final IPartitioner partitioner = FBUtilities.newPartitioner(validationMetadata, header);
+
         final String keyspace = Strings.isEmpty(keyspaceName) ? desc.ksname : keyspaceName;
         final String table = Strings.isEmpty(tableName) ? desc.cfname : tableName;
         final CFMetaData.Builder builder = CFMetaData.Builder
                 .create(keyspace, table)
                 .withPartitioner(partitioner);
+
         header.getStaticColumns().entrySet().stream()
                 .forEach(entry -> {
                     final ColumnIdentifier ident =
                             ColumnIdentifier.getInterned(UTF8Type.instance.getString(entry.getKey()), true);
                     builder.addStaticColumn(ident, entry.getValue());
                 });
+
         header.getRegularColumns().entrySet().stream()
                 .forEach(entry -> {
                     final ColumnIdentifier ident =
                             ColumnIdentifier.getInterned(UTF8Type.instance.getString(entry.getKey()), true);
                     builder.addRegularColumn(ident, entry.getValue());
                 });
-
 
         if (header.getKeyType() instanceof CompositeType) {
             assert partitionKeyNames.size() == 0
@@ -235,6 +370,7 @@ public final class SSTableUtils {
             }
             builder.addClusteringColumn(clusteringColName, header.getClusteringTypes().get(i));
         }
+
         return builder.build();
     }
 

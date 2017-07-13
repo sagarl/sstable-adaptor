@@ -24,16 +24,39 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.apache.cassandra.cql3.ColumnIdentifier;
-import org.apache.cassandra.db.*;
+import org.apache.cassandra.cql3.QueryProcessor;
+import org.apache.cassandra.cql3.statements.CFProperties;
+import org.apache.cassandra.cql3.statements.CFStatement;
+import org.apache.cassandra.cql3.statements.CreateTableStatement;
+import org.apache.cassandra.db.ClusteringComparator;
+import org.apache.cassandra.db.ClusteringPrefix;
+import org.apache.cassandra.db.CompactTables;
+import org.apache.cassandra.db.DecoratedKey;
+import org.apache.cassandra.db.PartitionColumns;
+import org.apache.cassandra.db.Serializers;
+import org.apache.cassandra.db.UnknownColumnFamilyException;
 import org.apache.cassandra.db.filter.ColumnFilter;
-import org.apache.cassandra.db.marshal.*;
+import org.apache.cassandra.db.marshal.AbstractType;
+import org.apache.cassandra.db.marshal.BytesType;
+import org.apache.cassandra.db.marshal.CollectionType;
+import org.apache.cassandra.db.marshal.CompositeType;
+import org.apache.cassandra.db.marshal.CounterColumnType;
+import org.apache.cassandra.db.marshal.MapType;
+import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.schema.CompressionParams;
 import org.apache.cassandra.schema.TableParams;
-import org.apache.cassandra.utils.*;
+import org.apache.cassandra.schema.Types;
+import org.apache.cassandra.utils.AbstractIterator;
+import org.apache.cassandra.utils.FBUtilities;
+import org.apache.cassandra.utils.Pair;
+import org.apache.cassandra.utils.UUIDGen;
+import org.apache.cassandra.utils.UUIDSerializer;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.github.jamm.Unmetered;
@@ -42,7 +65,19 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -118,9 +153,53 @@ public final class CFMetaData
         return this;
     }
 
+    public CFMetaData bloomFilterFpChance(double prop)
+    {
+        params = TableParams.builder(params).bloomFilterFpChance(prop).build();
+        return this;
+    }
+
     public CFMetaData compression(CompressionParams prop)
     {
         params = TableParams.builder(params).compression(prop).build();
+        return this;
+    }
+
+    public CFMetaData defaultTimeToLive(int prop)
+    {
+        params = TableParams.builder(params).defaultTimeToLive(prop).build();
+        return this;
+    }
+
+    public CFMetaData maxIndexInterval(int prop)
+    {
+        params = TableParams.builder(params).maxIndexInterval(prop).build();
+        return this;
+    }
+
+
+    public CFMetaData minIndexInterval(int prop)
+    {
+        params = TableParams.builder(params).minIndexInterval(prop).build();
+        return this;
+    }
+
+
+    public CFMetaData crcCheckChance(double prop)
+    {
+        params = TableParams.builder(params).crcCheckChance(prop).build();
+        return this;
+    }
+
+    public CFMetaData extensions(Map<String, ByteBuffer> extensions)
+    {
+        params = TableParams.builder(params).extensions(extensions).build();
+        return this;
+    }
+
+    public CFMetaData droppedColumns(Map<ByteBuffer, DroppedColumn> cols)
+    {
+        droppedColumns = cols;
         return this;
     }
 
@@ -166,7 +245,7 @@ public final class CFMetaData
         isIndex = cfName.contains(".");
 
         assert partitioner != null : "This assertion failure is probably due to accessing Schema.instance " +
-                                     "from client-mode tools - See CASSANDRA-8143.";
+                "from client-mode tools - See CASSANDRA-8143.";
         this.partitioner = partitioner;
 
         // A compact table should always have a clustering
@@ -181,7 +260,6 @@ public final class CFMetaData
 
         rebuild();
 
-        //this.resource = DataResource.table(ksName, cfName);
         this.serializers = new Serializers(this);
     }
 
@@ -209,6 +287,11 @@ public final class CFMetaData
             this.compactValueColumn = CompactTables.getCompactValueColumn(partitionColumns, isSuper());
 
         this.allColumnFilter = ColumnFilter.all(this);
+    }
+
+    public ColumnFilter getAllColumnFilter()
+    {
+        return allColumnFilter;
     }
 
     public static CFMetaData create(String ksName,
@@ -246,17 +329,17 @@ public final class CFMetaData
         Collections.sort(clusterings);
 
         return new CFMetaData(ksName,
-                              name,
-                              cfId,
-                              isSuper,
-                              isCounter,
-                              isDense,
-                              isCompound,
-                              isView,
-                              partitions,
-                              clusterings,
-                              builder.build(),
-                              partitioner);
+                name,
+                cfId,
+                isSuper,
+                isCounter,
+                isDense,
+                isCompound,
+                isView,
+                partitions,
+                clusterings,
+                builder.build(),
+                partitioner);
     }
 
     public static List<AbstractType<?>> extractTypes(Iterable<ColumnDefinition> clusteringColumns)
@@ -265,6 +348,30 @@ public final class CFMetaData
         for (ColumnDefinition def : clusteringColumns)
             types.add(def.type);
         return types;
+    }
+
+    public static CFMetaData compile(String cql, String keyspace)
+    {
+        return compile(cql, keyspace, Murmur3Partitioner.instance);
+    }
+
+    public static CFMetaData compile(String cql, String keyspace, String partitioner)
+    {
+        return compile(cql, keyspace, FBUtilities.newPartitioner(partitioner));
+    }
+
+    public static CFMetaData compile(String cql, String keyspace, IPartitioner partitioner)
+    {
+        CFStatement parsed = (CFStatement) QueryProcessor.parseStatement(cql);
+        parsed.properties.properties.addProperty(CFProperties.KEYSPACE_NAME, keyspace);
+
+        CreateTableStatement statement = (CreateTableStatement) parsed.prepare().statement;
+
+        return statement.metadataBuilder()
+                .withId(generateLegacyCfId(keyspace, statement.columnFamily()))
+                .withPartitioner(partitioner)
+                .build()
+                .params(statement.params());
     }
 
     public Set<Flag> flags()
@@ -282,12 +389,31 @@ public final class CFMetaData
         return CFMetaData.Builder.create(keyspace, name).addPartitionKey("key", BytesType.instance).build();
     }
 
+    /**
+     * Generates deterministic UUID from keyspace/columnfamily name pair.
+     * This is used to generate the same UUID for {@code C* version < 2.1}
+     *
+     * Since 2.1, this is only used for system columnfamilies and tests.
+     */
+    public static UUID generateLegacyCfId(String ksName, String cfName)
+    {
+        return UUID.nameUUIDFromBytes(ArrayUtils.addAll(ksName.getBytes(), cfName.getBytes()));
+    }
+
     private static List<ColumnDefinition> copy(List<ColumnDefinition> l)
     {
         List<ColumnDefinition> copied = new ArrayList<>(l.size());
         for (ColumnDefinition cd : l)
             copied.add(cd.copy());
         return copied;
+    }
+
+    private static PartitionColumns copy(PartitionColumns columns)
+    {
+        PartitionColumns.Builder newColumns = PartitionColumns.builder();
+        for (ColumnDefinition cd : columns)
+            newColumns.add(cd.copy());
+        return newColumns.build();
     }
 
     /**
@@ -317,12 +443,11 @@ public final class CFMetaData
         return isIndex ? cfName.substring(0, cfName.indexOf('.')) : null;
     }
 
-
     public AbstractType<?> getColumnDefinitionNameComparator(ColumnDefinition.Kind kind)
     {
         return (isSuper() && kind == ColumnDefinition.Kind.REGULAR) || (isStaticCompactTable() && kind == ColumnDefinition.Kind.STATIC)
-             ? thriftColumnNameType()
-             : UTF8Type.instance;
+                ? thriftColumnNameType()
+                : UTF8Type.instance;
     }
 
     public AbstractType<?> getKeyValidator()
@@ -347,10 +472,10 @@ public final class CFMetaData
             private final Iterator<ColumnDefinition> partitionKeyIter = partitionKeyColumns.iterator();
             private final Iterator<ColumnDefinition> clusteringIter = isStaticCompactTable ? Collections.<ColumnDefinition>emptyIterator() : clusteringColumns.iterator();
             private final Iterator<ColumnDefinition> otherColumns = noNonPkColumns
-                                                                  ? Collections.<ColumnDefinition>emptyIterator()
-                                                                  : (isStaticCompactTable
-                                                                     ?  partitionColumns.statics.selectOrderIterator()
-                                                                     :  partitionColumns.selectOrderIterator());
+                    ? Collections.<ColumnDefinition>emptyIterator()
+                    : (isStaticCompactTable
+                    ?  partitionColumns.statics.selectOrderIterator()
+                    :  partitionColumns.selectOrderIterator());
 
             protected ColumnDefinition computeNext()
             {
@@ -394,8 +519,8 @@ public final class CFMetaData
     {
         boolean isCompound = keyValidator instanceof CompositeType;
         List<AbstractType<?>> types = isCompound
-                                    ? ((CompositeType) keyValidator).types
-                                    : Collections.<AbstractType<?>>singletonList(keyValidator);
+                ? ((CompositeType) keyValidator).types
+                : Collections.<AbstractType<?>>singletonList(keyValidator);
         return new ClusteringComparator(types);
     }
 
@@ -442,8 +567,8 @@ public final class CFMetaData
         // BytesType is fine for what we'll be using it for, even if that's a hack.
         AbstractType<?> type = dropped.type == null ? BytesType.instance : dropped.type;
         return isStatic
-               ? ColumnDefinition.staticDef(this, name, type)
-               : ColumnDefinition.regularDef(this, name, type);
+                ? ColumnDefinition.staticDef(this, name, type)
+                : ColumnDefinition.regularDef(this, name, type);
     }
 
     @Override
@@ -458,48 +583,31 @@ public final class CFMetaData
         CFMetaData other = (CFMetaData) o;
 
         return Objects.equal(cfId, other.cfId)
-            && Objects.equal(flags, other.flags)
-            && Objects.equal(ksName, other.ksName)
-            && Objects.equal(cfName, other.cfName)
-            && Objects.equal(params, other.params)
-            && Objects.equal(comparator, other.comparator)
-            && Objects.equal(keyValidator, other.keyValidator)
-            && Objects.equal(columnMetadata, other.columnMetadata)
-            && Objects.equal(droppedColumns, other.droppedColumns);
+                && Objects.equal(flags, other.flags)
+                && Objects.equal(ksName, other.ksName)
+                && Objects.equal(cfName, other.cfName)
+                && Objects.equal(params, other.params)
+                && Objects.equal(comparator, other.comparator)
+                && Objects.equal(keyValidator, other.keyValidator)
+                && Objects.equal(columnMetadata, other.columnMetadata)
+                && Objects.equal(droppedColumns, other.droppedColumns);
     }
 
     @Override
     public int hashCode()
     {
         return new HashCodeBuilder(29, 1597)
-            .append(cfId)
-            .append(ksName)
-            .append(cfName)
-            .append(flags)
-            .append(comparator)
-            .append(params)
-            .append(keyValidator)
-            .append(columnMetadata)
-            .append(droppedColumns)
-            .toHashCode();
+                .append(cfId)
+                .append(ksName)
+                .append(cfName)
+                .append(flags)
+                .append(comparator)
+                .append(params)
+                .append(keyValidator)
+                .append(columnMetadata)
+                .append(droppedColumns)
+                .toHashCode();
     }
-
-    public void validateCompatibility(CFMetaData cfm) throws ConfigurationException
-    {
-        // validate
-        if (!cfm.ksName.equals(ksName))
-            throw new ConfigurationException(String.format("Keyspace mismatch (found %s; expected %s)",
-                                                           cfm.ksName, ksName));
-        if (!cfm.cfName.equals(cfName))
-            throw new ConfigurationException(String.format("Column family mismatch (found %s; expected %s)",
-                                                           cfm.cfName, cfName));
-        if (!cfm.cfId.equals(cfId))
-            throw new ConfigurationException(String.format("Column family ID mismatch (found %s; expected %s)",
-                                                           cfm.cfId, cfId));
-        if (!cfm.flags.equals(flags))
-            throw new ConfigurationException("types do not match.");
-    }
-
 
     /**
      * Returns the ColumnDefinition for {@code name}.
@@ -521,7 +629,7 @@ public final class CFMetaData
     public static boolean isNameValid(String name)
     {
         return name != null && !name.isEmpty()
-               && name.length() <= SchemaConstants.NAME_LENGTH && PATTERN_WORD_CHARS.matcher(name).matches();
+                && name.length() <= SchemaConstants.NAME_LENGTH && PATTERN_WORD_CHARS.matcher(name).matches();
     }
 
     // The comparator to validate the definition name with thrift.
@@ -665,24 +773,24 @@ public final class CFMetaData
     public AbstractType<?> makeLegacyDefaultValidator()
     {
         return isCounter()
-             ? CounterColumnType.instance
-             : (isCompactTable() ? compactValueColumn().type : BytesType.instance);
+                ? CounterColumnType.instance
+                : (isCompactTable() ? compactValueColumn().type : BytesType.instance);
     }
 
     public static Set<Flag> flagsFromStrings(Set<String> strings)
     {
         return strings.stream()
-                      .map(String::toUpperCase)
-                      .map(Flag::valueOf)
-                      .collect(Collectors.toSet());
+                .map(String::toUpperCase)
+                .map(Flag::valueOf)
+                .collect(Collectors.toSet());
     }
 
     public static Set<String> flagsToStrings(Set<Flag> flags)
     {
         return flags.stream()
-                    .map(Flag::toString)
-                    .map(String::toLowerCase)
-                    .collect(Collectors.toSet());
+                .map(Flag::toString)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
     }
 
 
@@ -690,19 +798,19 @@ public final class CFMetaData
     public String toString()
     {
         return new ToStringBuilder(this)
-            .append("cfId", cfId)
-            .append("ksName", ksName)
-            .append("cfName", cfName)
-            .append("flags", flags)
-            .append("params", params)
-            .append("comparator", comparator)
-            .append("partitionColumns", partitionColumns)
-            .append("partitionKeyColumns", partitionKeyColumns)
-            .append("clusteringColumns", clusteringColumns)
-            .append("keyValidator", keyValidator)
-            .append("columnMetadata", columnMetadata.values())
-            .append("droppedColumns", droppedColumns)
-            .toString();
+                .append("cfId", cfId)
+                .append("ksName", ksName)
+                .append("cfName", cfName)
+                .append("flags", flags)
+                .append("params", params)
+                .append("comparator", comparator)
+                .append("partitionColumns", partitionColumns)
+                .append("partitionKeyColumns", partitionKeyColumns)
+                .append("clusteringColumns", clusteringColumns)
+                .append("keyValidator", keyValidator)
+                .append("columnMetadata", columnMetadata.values())
+                .append("droppedColumns", droppedColumns)
+                .toString();
     }
 
     public static class Builder
@@ -826,6 +934,20 @@ public final class CFMetaData
             return this;
         }
 
+        public Set<String> usedColumnNames()
+        {
+            Set<String> usedNames = Sets.newHashSetWithExpectedSize(partitionKeys.size() + clusteringColumns.size() + staticColumns.size() + regularColumns.size());
+            for (Pair<ColumnIdentifier, AbstractType> p : partitionKeys)
+                usedNames.add(p.left.toString());
+            for (Pair<ColumnIdentifier, AbstractType> p : clusteringColumns)
+                usedNames.add(p.left.toString());
+            for (Pair<ColumnIdentifier, AbstractType> p : staticColumns)
+                usedNames.add(p.left.toString());
+            for (Pair<ColumnIdentifier, AbstractType> p : regularColumns)
+                usedNames.add(p.left.toString());
+            return usedNames;
+        }
+
         public CFMetaData build()
         {
             if (tableId == null)
@@ -854,18 +976,23 @@ public final class CFMetaData
                 builder.add(new ColumnDefinition(keyspace, table, p.left, p.right, ColumnDefinition.NO_POSITION, ColumnDefinition.Kind.STATIC));
 
             return new CFMetaData(keyspace,
-                                  table,
-                                  tableId,
-                                  isSuper,
-                                  isCounter,
-                                  isDense,
-                                  isCompound,
-                                  isView,
-                                  partitions,
-                                  clusterings,
-                                  builder.build(),
-                                  partitioner.orElseGet(DatabaseDescriptor::getPartitioner));
+                    table,
+                    tableId,
+                    isSuper,
+                    isCounter,
+                    isDense,
+                    isCompound,
+                    isView,
+                    partitions,
+                    clusterings,
+                    builder.build(),
+                    partitioner.orElseGet(CFMetaData::getDefaultPartitioner));
         }
+    }
+
+    public static IPartitioner getDefaultPartitioner()
+    {
+        return Murmur3Partitioner.instance;
     }
 
     public static class Serializer
@@ -936,10 +1063,10 @@ public final class CFMetaData
         public String toString()
         {
             return MoreObjects.toStringHelper(this)
-                              .add("name", name)
-                              .add("type", type)
-                              .add("droppedTime", droppedTime)
-                              .toString();
+                    .add("name", name)
+                    .add("type", type)
+                    .add("droppedTime", droppedTime)
+                    .toString();
         }
     }
 }
