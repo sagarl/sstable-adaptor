@@ -32,8 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Test SSTable utilites.
@@ -67,7 +65,7 @@ public class TestSSTableUtils extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testParsingCompositeKey() throws IOException {
-        final String inputSSTableFullPathFileName = DATA_DIR + "compressed_bills/mc-2-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "compressed_bills/mc-2-big-Data.db";
 
         final SSTableSingleReader SSTableSingleReader =
                                 new SSTableSingleReader(inputSSTableFullPathFileName);
@@ -87,109 +85,4 @@ public class TestSSTableUtils extends TestBaseSSTableFunSuite {
         Assert.assertEquals(email, objects.get(1));
     }
 
-
-    @Test
-    public void testRegex1() {
-        // String to be scanned to find the pattern.
-        String line = "This order was placed for QT3000! OK?";
-        String pattern = "(.*)(\\d+)(.*)";
-
-        // Create a Pattern object
-        Pattern r = Pattern.compile(pattern);
-
-        // Now create matcher object.
-        Matcher m = r.matcher(line);
-        while (m.find( )) {
-            System.out.println("Count: " + m.groupCount());
-            System.out.println("Found value: " + m.group(0) );
-            System.out.println("Found value: " + m.group(1) );
-            System.out.println("Found value: " + m.group(2) );
-            System.out.println("Found value: " + m.group(3) );
-        }
-
-        //else {
-        //    System.out.println("NO MATCH");
-        //}
-    }
-
-    @Test
-    public void testRegex2() {
-        // String to be scanned to find the pattern.
-        String line = "CREATE TABLE mytable (\n" +
-                "        user text,\n" +
-                "        region_id string,\n" +
-                "        expense_id int,\n" +
-                "        check_id int,\n" +
-                "        name text,\n" +
-                "        PRIMARY KEY ( ( user  ,  region_id ), expense_id, check_id )\n" +
-                "        WITH CLUSTERING ORDER BY ( expense_id DESC )\n" +
-                "    )";
-
-        String pattern = "\\bPRIMARY\\s+KEY\\b\\s*\\((.*)\\)";
-
-        String partitionPattern = "\\(\\s*([\\w,\\s]+)\\s*\\)";
-        String clusteringPattern = "\\)\\s*,\\s*([\\w,\\s]+)\\s*";
-
-        // Create a Pattern object
-        Pattern r = Pattern.compile(pattern);
-
-        // Now create matcher object.
-        Matcher m = r.matcher(line);
-        while (m.find( )) {
-            for (int i = 0; i < m.groupCount(); i++) {
-                String keysStr = m.group(i + 1);
-                System.out.println("Found keysStr: " + keysStr);
-                //parsing out the partition key
-                Pattern r2 = Pattern.compile(partitionPattern);
-                Matcher m2 = r2.matcher(keysStr);
-                while (m2.find()) {
-                    for(int j=0; j< m2.groupCount(); j++)
-                       System.out.println("Found partition key: " + m2.group(j+1));
-                }
-
-                Pattern r3 = Pattern.compile(clusteringPattern);
-                Matcher m3 = r3.matcher(keysStr);
-                while (m3.find()) {
-                    for(int j=0; j< m3.groupCount(); j++)
-                        System.out.println("Found clustering key: " + m3.group(j+1));
-                }
-            }
-            //System.out.println("Found value: " + m.group(1) );
-            //System.out.println("Found value: " + m.group(2) );
-        }
-        //}else {
-        //    System.out.println("NO MATCH");
-        //}
-    }
-
-    @Test
-    public void testRegex3() {
-        // String to be scanned to find the pattern.
-        String line = "CREATE TABLE mytable (\n" +
-                "        user text,\n" +
-                "        region_id string,\n" +
-                "        expense_id int,\n" +
-                "        check_id int,\n" +
-                "        name text,\n" +
-                "        PRIMARY KEY ( ( user  ,  region_id ), expense_id, check_id )\n" +
-                "        WITH CLUSTERING ORDER BY ( expense_id DESC )\n" +
-                "    )";
-
-        String pattern = "\\s*(\\w+)\\s*(text|string)";
-
-        // Create a Pattern object
-        Pattern r = Pattern.compile(pattern);
-
-        // Now create matcher object.
-        Matcher m = r.matcher(line);
-        while (m.find()) {
-            for(int i=0; i< m.groupCount(); i++)
-                System.out.println("Found value: " + m.group(i+1) );
-            //System.out.println("Found value 1: " + m.group(1) );
-            //System.out.println("Found value 2: " + m.group(2) );
-        }
-        //else {
-        //    System.out.println("NO MATCH");
-        //}
-    }
 }

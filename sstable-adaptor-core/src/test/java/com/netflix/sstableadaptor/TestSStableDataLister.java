@@ -82,7 +82,7 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testOnLocalDataSimplePartitionKey() {
-        //final String inputSSTableFullPathFileName = DATA_DIR + "bills_compress/mc-6-big-Data.db";
+        //final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
         final String inputSSTableFullPathFileName = "/Users/minhdo/workspace2/BDP/cassandra-2/data/data/casspactor22/compressed_bills-730b1480644011e7b58753b84b6a56cd/lb-1-big-Data.db";
         final int counter = getRowCount(inputSSTableFullPathFileName);
 
@@ -137,7 +137,7 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testOnLocalDataCompositePartitionKey() {
-        final String inputSSTableFullPathFileName = DATA_DIR + "compressed_bills/mc-2-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "compressed_bills/mc-2-big-Data.db";
         final int counter = getRowCount(inputSSTableFullPathFileName);
 
         LOGGER.info("\nCounter: " + counter);
@@ -155,39 +155,9 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
                     sstableSingleReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
 
             while (currentScanner.hasNext()) {
-                LOGGER.info("===================111==================================");
-                final UnfilteredRowIterator unfilteredRowIterator = currentScanner.next();
-                final ByteBuffer partitionKey = unfilteredRowIterator.partitionKey().getKey();
-                final CFMetaData cfMetaData = sstableSingleReader.getCfMetaData();
-                LOGGER.info("Partition key: " + new String(unfilteredRowIterator.partitionKey().getKey().array()));
-
-                final List<Object> list = SSTableUtils.parsePrimaryKey(cfMetaData, partitionKey);
-                Assert.assertEquals(cfMetaData.partitionKeyColumns().size(), list.size());
-                for (Object val : list) {
-                    LOGGER.info("Partition key val ::::: " + val);
-                }
-
-                LOGGER.info("\tStatic: " + unfilteredRowIterator.staticRow());
-
-                final Row staticRow = unfilteredRowIterator.staticRow();
-                LOGGER.info("static info: " + staticRow.isStatic());
-
-                while (unfilteredRowIterator.hasNext()) {
-                    LOGGER.info("\t---------------2222---------------------------------");
-                    final Row row = (Row) unfilteredRowIterator.next();
-
-                    LOGGER.info("\tClustering: " + ByteBufferUtil.toInt(row.clustering().get(0)));
-
-                    final Iterable<Cell> cells = row.cells();
-                    final Iterator<Cell> cellsIterator = cells.iterator();
-                    LOGGER.info("\tCells: ");
-                    while (cellsIterator.hasNext()) {
-                        final Cell cell = cellsIterator.next();
-                        LOGGER.info("Type: " + cell.column().type);
-                        LOGGER.info("\t\t" + cell.toString());
-                    }
-                    LOGGER.info("\t------------------------------------------------");
-                    counter++;
+                while (currentScanner.hasNext()) {
+                    final UnfilteredRowIterator unfilteredRowIterator = currentScanner.next();
+                    counter += printRowDetails(sstableSingleReader.getCfMetaData(), unfilteredRowIterator);
                 }
             }
         } catch (IOException e) {
@@ -204,11 +174,10 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testCasspactorIterator() throws IOException {
-        final String inputSSTableFullPathFileName = DATA_DIR + "bills_compress/mc-6-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
         final SSTableSingleReader reader1 = new SSTableSingleReader(inputSSTableFullPathFileName);
         final SSTableSingleReader reader2 = new SSTableSingleReader(inputSSTableFullPathFileName);
         final CFMetaData cfMetaData = reader1.getCfMetaData();
-
         final List<ISSTableScanner> scanners = new ArrayList<>();
         final int nowInSecs = (int) (System.currentTimeMillis() / 1000);
 
@@ -218,40 +187,8 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
         int counter = 0;
         try (SSTableIterator ci = new SSTableIterator(scanners, reader1.getCfMetaData(), nowInSecs)) {
             while (ci.hasNext()) {
-
-                LOGGER.info("=====================================================");
                 final UnfilteredRowIterator unfilteredRowIterator = ci.next();
-                final ByteBuffer partitionKey = unfilteredRowIterator.partitionKey().getKey();
-
-                LOGGER.info("Partition key: " + new String(unfilteredRowIterator.partitionKey().getKey().array()));
-
-                final List<Object> list = SSTableUtils.parsePrimaryKey(cfMetaData, partitionKey);
-                Assert.assertEquals(cfMetaData.partitionKeyColumns().size(), list.size());
-                for (Object val : list) {
-                    LOGGER.info("Partition key: " + val);
-                }
-
-                LOGGER.info("\tStatic: " + unfilteredRowIterator.staticRow());
-                final Row staticRow = unfilteredRowIterator.staticRow();
-                LOGGER.info("static info: " + staticRow.isStatic());
-
-                while (unfilteredRowIterator.hasNext()) {
-                    LOGGER.info("\t-----------------------------------------------");
-                    final Row row = (Row) unfilteredRowIterator.next();
-                    LOGGER.info("\tClustering: " + ByteBufferUtil.toInt(row.clustering().get(0)));
-
-                    final Iterable<Cell> cells = row.cells();
-                    final Iterator<Cell> cellsIterator = cells.iterator();
-                    LOGGER.info("\tCells: ");
-                    while (cellsIterator.hasNext()) {
-                        final Cell cell = cellsIterator.next();
-                        LOGGER.info("Type: " + cell.column().type);
-                        LOGGER.info("\t\t" + cell.toString());
-                    }
-
-                    LOGGER.info("\t------------------------------------------------");
-                    counter++;
-                }
+                counter += printRowDetails(cfMetaData, unfilteredRowIterator);
             }
         }
 

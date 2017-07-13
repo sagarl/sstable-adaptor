@@ -142,33 +142,18 @@ public class SSTableSingleReader {
     }
 
     /**
-     * Initialization.
-     * @param keyspaceName keyspace name
-     * @param tableName table name
-     * @param partitionKeyNames list of partition key names
-     * @param clusteringKeyNames list of clustering key names
+     * Initialization with already defined CFMetaData.
+     * @param cfMetaData CFMetaData to represent the table schema
      * @throws IOException when file location is not valid
      */
     private void initialization(final CFMetaData cfMetaData) throws IOException {
         descriptor = Descriptor.fromFilename(HadoopFileUtils.normalizeFileName(fileLocation));
         this.cfMetaData = cfMetaData;
-        sstableReader = SSTableReader.openNoValidation(descriptor, cfMetaData);
-        fileLength = sstableReader.onDiskLength();
-        version = descriptor.version.correspondingMessagingVersion();
-        generation = descriptor.generation;
-        keyValidator = cfMetaData.getKeyValidator();
-        clusteringComparator = cfMetaData.getKeyValidatorAsClusteringComparator();
-        first = sstableReader.first;
-        last = sstableReader.last;
-        totalRows = sstableReader.getTotalRows();
-        partitioner = cfMetaData.partitioner;
-        stats = sstableReader.getSSTableMetadata();
-        estimatedPartitionSize = sstableReader.getEstimatedPartitionSize();
-        indexSummary = sstableReader.getIndexSummary();
+        initHelper();
     }
 
     /**
-     * Initialization.
+     * Initialization with provided keyspace, table, and key names.
      * @param keyspaceName keyspace name
      * @param tableName table name
      * @param partitionKeyNames list of partition key names
@@ -183,6 +168,10 @@ public class SSTableSingleReader {
         cfMetaData = SSTableUtils.metadataFromSSTable(descriptor, keyspaceName, tableName, partitionKeyNames, clusteringKeyNames);
         //cfMetaData = SSTableUtils.metadataFromSSTableHacked(descriptor, keyspaceName, tableName, partitionKeyNames, clusteringKeyNames);
 
+        initHelper();
+    }
+
+    private void initHelper() throws IOException {
         sstableReader = SSTableReader.openNoValidation(descriptor, cfMetaData);
         fileLength = sstableReader.onDiskLength();
         version = descriptor.version.correspondingMessagingVersion();
