@@ -106,6 +106,10 @@ public class TestBaseSSTableFunSuite {
         LOGGER.info("static info: " + staticRow.isStatic());
 
         LOGGER.info("\tStatic: " + staticRow);
+        staticRow.cells().forEach(cell -> {
+            LOGGER.info("\tName: " + cell.column() + ", value: " + cell.column().cellValueType().compose(cell.value()));
+        });
+
         if (isThriftTable)
             counter++;
 

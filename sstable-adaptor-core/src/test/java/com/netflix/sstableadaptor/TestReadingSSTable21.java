@@ -1,19 +1,14 @@
 package com.netflix.sstableadaptor;
 
 import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
-import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.cql3.QueryProcessor;
 import org.apache.cassandra.cql3.statements.CFProperties;
 import org.apache.cassandra.cql3.statements.CreateTableStatement;
 import org.apache.cassandra.cql3.statements.ParsedStatement;
-import org.apache.cassandra.db.marshal.Int32Type;
-import org.apache.cassandra.db.rows.Cell;
-import org.apache.cassandra.db.rows.Row;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
-import org.apache.cassandra.utils.ByteBufferUtil;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -22,9 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Iterator;
-import java.util.List;
 
 /**
  * These tests are for reading SSTable in Cassandra 2.1.
@@ -85,9 +77,6 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
                 "    AND min_index_interval = 128\n" +
                 "    AND read_repair_chance = 0.0\n" +
                 "    AND speculative_retry = '99PERCENTILE'";
-
-        //final String inputSSTableFullPathFileName = "/Users/minhdo/workspace2/BDP/cassandra-2/data/data/casspactor2/compressed_bills-03c5a7b0643c11e7936273d8df3aeac7/casspactor2-compressed_bills-ka-1-Data.db";
-        //final String inputSSTableFullPathFileName = "/Users/minhdo/workspace2/BDP/cassandra-2/data/data/abc/user_profiles-b355bee0669911e7a49e993faaf28cc4/abc-user_profiles-ka-1-Data.db";
 
         final String inputSSTableFullPathFileName = CASS21_DATA_DIR + "compressed_bills-03c5a7b0643c11e7936273d8df3aeac7/casspactor2-compressed_bills-ka-1-Data.db";
 
