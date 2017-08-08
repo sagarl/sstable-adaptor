@@ -26,7 +26,6 @@ import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.util.DiskOptimizationStrategy;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.io.util.SpinningDiskOptimizationStrategy;
-import org.apache.cassandra.io.util.SsdDiskOptimizationStrategy;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -34,9 +33,22 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.*;
-import java.nio.file.*;
-import java.util.*;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.nio.file.FileStore;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Enumeration;
+import java.util.List;
 
 //import org.apache.cassandra.thrift.ThriftServer.ThriftServerType;
 
@@ -85,102 +97,6 @@ public class DatabaseDescriptor
     private static final boolean disableSTCSInL0 = Boolean.getBoolean(Config.PROPERTY_PREFIX + "disable_stcs_in_l0");
     private static final boolean unsafeSystem = Boolean.getBoolean(Config.PROPERTY_PREFIX + "unsafesystem");
 
-    public static void daemonInitialization() throws ConfigurationException
-    {
-        if (toolInitialized)
-            throw new AssertionError("toolInitialization() already called");
-        if (clientInitialized)
-            throw new AssertionError("clientInitialization() already called");
-
-        // Some unit tests require this :(
-        if (daemonInitialized)
-            return;
-        daemonInitialized = true;
-
-        setConfig(loadConfig());
-        applyAll();
-
-    }
-
-    /**
-     * Equivalent to {@link #toolInitialization(boolean) toolInitialization(true)}.
-     */
-    public static void toolInitialization()
-    {
-        toolInitialization(true);
-    }
-
-    /**
-     * Initializes this class as a tool, which means that the configuration is loaded
-     * using {@link #loadConfig()} and all non-daemon configuration parts will be setup.
-     *
-     * @param failIfDaemonOrClient if {@code true} and a call to {@link #daemonInitialization()} or
-     *                             {@link #clientInitialization()} has been performed before, an
-     *                             {@link AssertionError} will be thrown.
-     */
-    public static void toolInitialization(boolean failIfDaemonOrClient)
-    {
-        if (!failIfDaemonOrClient && (daemonInitialized || clientInitialized))
-        {
-            return;
-        }
-        else
-        {
-            if (daemonInitialized)
-                throw new AssertionError("daemonInitialization() already called");
-            if (clientInitialized)
-                throw new AssertionError("clientInitialization() already called");
-        }
-
-        if (toolInitialized)
-            return;
-        toolInitialized = true;
-
-        setConfig(loadConfig());
-
-        applySimpleConfig();
-
-        applyPartitioner();
-
-    }
-
-    /**
-     * Equivalent to {@link #clientInitialization(boolean) clientInitialization(true)}.
-     */
-    public static void clientInitialization()
-    {
-        clientInitialization(true);
-    }
-
-    /**
-     * Initializes this class as a client, which means that just an empty configuration will
-     * be used.
-     *
-     * @param failIfDaemonOrTool if {@code true} and a call to {@link #daemonInitialization()} or
-     *                           {@link #toolInitialization()} has been performed before, an
-     *                           {@link AssertionError} will be thrown.
-     */
-    public static void clientInitialization(boolean failIfDaemonOrTool)
-    {
-        if (!failIfDaemonOrTool && (daemonInitialized || toolInitialized))
-        {
-            return;
-        }
-        else
-        {
-            if (daemonInitialized)
-                throw new AssertionError("daemonInitialization() already called");
-            if (toolInitialized)
-                throw new AssertionError("toolInitialization() already called");
-        }
-
-        if (clientInitialized)
-            return;
-        clientInitialized = true;
-
-        conf = new Config();
-        diskOptimizationStrategy = new SpinningDiskOptimizationStrategy();
-    }
 
     public static boolean isClientInitialized()
     {
@@ -205,24 +121,6 @@ public class DatabaseDescriptor
     public static Config getRawConfig()
     {
         return conf;
-    }
-
-    @VisibleForTesting
-    public static Config loadConfig() throws ConfigurationException
-    {
-        String loaderClass = System.getProperty(Config.PROPERTY_PREFIX + "config.loader");
-        ConfigurationLoader loader = loaderClass == null
-            ? new YamlConfigurationLoader()
-            : FBUtilities.<ConfigurationLoader>construct(loaderClass, "configuration loading");
-        Config config = loader.loadConfig();
-
-        if (!hasLoggedConfig)
-        {
-            hasLoggedConfig = true;
-            Config.log(config);
-        }
-
-        return config;
     }
 
     private static InetAddress getNetworkInterfaceAddress(String intf, String configName, boolean preferIPv6) throws ConfigurationException
@@ -625,16 +523,6 @@ public class DatabaseDescriptor
 
         if (conf.max_value_size_in_mb <= 0)
             throw new ConfigurationException("max_value_size_in_mb must be positive", false);
-
-        switch (conf.disk_optimization_strategy)
-        {
-            case ssd:
-                diskOptimizationStrategy = new SsdDiskOptimizationStrategy(conf.disk_optimization_page_cross_chance);
-                break;
-            case spinning:
-                diskOptimizationStrategy = new SpinningDiskOptimizationStrategy();
-                break;
-        }
 
         if (conf.otc_coalescing_enough_coalesced_messages > 128)
             throw new ConfigurationException("otc_coalescing_enough_coalesced_messages must be smaller than 128", false);
