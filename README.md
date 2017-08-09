@@ -14,9 +14,11 @@ SSTable Adaptor Features:
 ## Packages
 
 - sstable-adaptor-core
-    The core I/O library.
+
+  The core I/O library.
 - sstable-adaptor-cassandra
-    Mainly code borrowed from Cassandra project to read/write SSTable files. 
+
+  Mainly code borrowed from Cassandra project to read/write SSTable files. 
 
 ## Binaries
 
