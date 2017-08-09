@@ -7,7 +7,7 @@ SSTable Adaptor is a library that allows various big data engines to read/write 
 SSTable Adaptor Features:
 
 - Use this in a standalone Java or a JVM language program
-- Use it in Spark
+- Use it in Spark (we will open-source our Spark job soon)
 - More will come
 
 
