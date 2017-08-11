@@ -2,11 +2,13 @@
 
 ## Overview
 
-SSTable Adaptor is a library that allows various big data engines to read/write SSTable format.
+SSTable Adaptor is a thin library stripped out of Cassandra code base that can be injected into any JVM languages to read/write SSTable formatted data.  Furthermore, it can read/write data to various data storage such as S3, HDFS, local disk, etc.
 
 SSTable Adaptor Features:
 
+- Read/write SSTable formatted files including compacting SSTable files
 - Use this in a standalone Java or a JVM language program
+- Read/Write data on S3, HDFS, or local disk
 - Use it in Spark (we will open-source our Spark job soon)
 - More will come
 
@@ -15,10 +17,10 @@ SSTable Adaptor Features:
 
 - sstable-adaptor-core
 
-  The core I/O library.
+    The core I/O library.
 - sstable-adaptor-cassandra
 
-  Mainly code borrowed from Cassandra project to read/write SSTable files. 
+    Mainly code borrowed from Cassandra project to read/write SSTable files. 
 
 ## Binaries
 
