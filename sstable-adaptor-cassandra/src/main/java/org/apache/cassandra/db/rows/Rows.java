@@ -70,7 +70,7 @@ public abstract class Rows
      */
     public static int collectStats(Row row, PartitionStatisticsCollector collector)
     {
-        assert !row.isEmpty();
+        //assert !row.isEmpty();
 
         collector.update(row.primaryKeyLivenessInfo());
         collector.update(row.deletion().time());

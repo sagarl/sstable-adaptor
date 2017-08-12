@@ -87,7 +87,9 @@ public class TestBaseSSTableFunSuite {
     /**
      *  Print out a row with details.
      */
-    protected int printRowDetails(final CFMetaData cfMetaData, final UnfilteredRowIterator unfilteredRowIterator) {
+    protected int printRowDetails(final CFMetaData cfMetaData,
+                                  final UnfilteredRowIterator unfilteredRowIterator,
+                                  final boolean isThriftTable) {
         int counter = 0;
         final ByteBuffer partitionKey = unfilteredRowIterator.partitionKey().getKey();
 
@@ -104,6 +106,12 @@ public class TestBaseSSTableFunSuite {
         LOGGER.info("static info: " + staticRow.isStatic());
 
         LOGGER.info("\tStatic: " + staticRow);
+        staticRow.cells().forEach(cell -> {
+            LOGGER.info("\tName: " + cell.column() + ", value: " + cell.column().cellValueType().compose(cell.value()));
+        });
+
+        if (isThriftTable)
+            counter++;
 
         while (unfilteredRowIterator.hasNext()) {
             final Row row = (Row) unfilteredRowIterator.next();
@@ -120,7 +128,9 @@ public class TestBaseSSTableFunSuite {
                 LOGGER.info("Type: " + cell.column().type);
                 LOGGER.info("\t\t" + cell.toString());
             }
-            counter++;
+
+            if (!isThriftTable)
+              counter++;
         }
 
         return counter;

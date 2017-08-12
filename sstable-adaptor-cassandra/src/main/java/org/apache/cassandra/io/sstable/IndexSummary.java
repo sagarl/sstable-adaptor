@@ -83,7 +83,7 @@ public class IndexSummary extends WrappedSharedCloseable
                         int sizeAtFullSampling, int minIndexInterval, int samplingLevel)
     {
         super(new Memory[] { offsets, entries });
-        assert offsets.getInt(0) == 0;
+        //assert offsets.getInt(0) == 0;
         this.partitioner = partitioner;
         this.minIndexInterval = minIndexInterval;
         this.offsetCount = offsetCount;

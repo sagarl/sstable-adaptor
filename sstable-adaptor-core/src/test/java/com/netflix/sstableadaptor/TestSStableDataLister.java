@@ -157,7 +157,7 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
             while (currentScanner.hasNext()) {
                 while (currentScanner.hasNext()) {
                     final UnfilteredRowIterator unfilteredRowIterator = currentScanner.next();
-                    counter += printRowDetails(sstableSingleReader.getCfMetaData(), unfilteredRowIterator);
+                    counter += printRowDetails(sstableSingleReader.getCfMetaData(), unfilteredRowIterator, false);
                 }
             }
         } catch (IOException e) {
@@ -188,7 +188,7 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
         try (SSTableIterator ci = new SSTableIterator(scanners, reader1.getCfMetaData(), nowInSecs)) {
             while (ci.hasNext()) {
                 final UnfilteredRowIterator unfilteredRowIterator = ci.next();
-                counter += printRowDetails(cfMetaData, unfilteredRowIterator);
+                counter += printRowDetails(cfMetaData, unfilteredRowIterator, false);
             }
         }
 

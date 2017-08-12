@@ -220,7 +220,7 @@ public class IndexSummaryBuilder implements AutoCloseable
     // multiple invocations of this build method
     public IndexSummary build(IPartitioner partitioner, ReadableBoundary boundary)
     {
-        assert entries.length() > 0;
+        //assert entries.length() > 0;
 
         int count = (int) (offsets.length() / 4);
         long entriesLength = entries.length();
@@ -231,7 +231,7 @@ public class IndexSummaryBuilder implements AutoCloseable
         }
 
         int sizeAtFullSampling = (int) Math.ceil(keysWritten / (double) minIndexInterval);
-        assert count > 0;
+        //assert count > 0;
         return new IndexSummary(partitioner, offsets.currentBuffer().sharedCopy(),
                                 count, entries.currentBuffer().sharedCopy(), entriesLength,
                                 sizeAtFullSampling, minIndexInterval, samplingLevel);

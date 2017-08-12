@@ -24,27 +24,31 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ColumnFamilyStore;
-import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.compaction.OperationType;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
-import org.apache.cassandra.io.util.FileUtils;
-import org.apache.cassandra.notifications.INotificationConsumer;
 import org.apache.cassandra.utils.Pair;
 import org.apache.cassandra.utils.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Predicates.and;
 import static com.google.common.collect.ImmutableSet.copyOf;
 import static com.google.common.collect.Iterables.filter;
 import static java.util.Collections.singleton;
-import static org.apache.cassandra.db.lifecycle.Helpers.*;
-import static org.apache.cassandra.db.lifecycle.View.*;
+import static org.apache.cassandra.db.lifecycle.Helpers.abortObsoletion;
+import static org.apache.cassandra.db.lifecycle.Helpers.markObsolete;
+import static org.apache.cassandra.db.lifecycle.Helpers.notIn;
+import static org.apache.cassandra.db.lifecycle.Helpers.prepareForObsoletion;
+import static org.apache.cassandra.db.lifecycle.Helpers.setupOnline;
+import static org.apache.cassandra.db.lifecycle.View.permitCompacting;
+import static org.apache.cassandra.db.lifecycle.View.updateCompacting;
+import static org.apache.cassandra.db.lifecycle.View.updateLiveSet;
 import static org.apache.cassandra.utils.Throwables.maybeFail;
 import static org.apache.cassandra.utils.Throwables.merge;
 import static org.apache.cassandra.utils.concurrent.Refs.release;
@@ -56,8 +60,6 @@ import static org.apache.cassandra.utils.concurrent.Refs.selfRefs;
 public class Tracker
 {
     private static final Logger logger = LoggerFactory.getLogger(Tracker.class);
-
-    private final Collection<INotificationConsumer> subscribers = new CopyOnWriteArrayList<>();
 
     public final ColumnFamilyStore cfstore;
     final AtomicReference<View> view;
