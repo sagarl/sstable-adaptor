@@ -17,7 +17,6 @@
  */
 package org.apache.cassandra.io.util;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteOrder;
 
@@ -312,7 +311,7 @@ public class RandomAccessReader extends RebufferingInputStream implements FileDa
     @SuppressWarnings("resource")
     public static RandomAccessReader open(String file)
     {
-        ChannelProxy channel =  ChannelProxy.getInstance(file);// //new ChannelProxy(file);
+        ChannelProxy channel =  ChannelProxy.newInstance(file);// //new ChannelProxy(file);
         try
         {
             ChunkReader reader = new SimpleChunkReader(channel, -1, BufferType.ON_HEAP, DEFAULT_BUFFER_SIZE);

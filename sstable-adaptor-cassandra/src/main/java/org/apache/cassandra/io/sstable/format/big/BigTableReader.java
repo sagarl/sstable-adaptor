@@ -174,7 +174,10 @@ public class BigTableReader extends SSTableReader
         int effectiveInterval = indexSummary.getEffectiveIndexIntervalAfterIndex(sampledIndex);
 
         if (ifile == null)
+        {
+            logger.info("ifile is null");
             return null;
+        }
 
         // scan the on-disk index, starting at the nearest sampled position.
         // The check against IndexInterval is to be exit the loop in the EQ case when the key looked for is not present

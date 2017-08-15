@@ -5,29 +5,39 @@ import org.apache.cassandra.config.Config;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
-import java.nio.file.OpenOption;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class HadoopFileUtils {
+
     public static Configuration CONF;
     public static int DEFAULT_BUFFER_SIZE = 65536;
+
+    private static final Logger logger = LoggerFactory.getLogger(HadoopFileUtils.class);
 
     static {
         CONF = new Configuration(); //load stuffs from properties files?
     }
 
-    public final static boolean exists(String filePath) {
+    public static boolean exists(String filePath) {
         filePath = normalizeFileName(filePath);
 
         try {
@@ -201,5 +211,50 @@ public class HadoopFileUtils {
             tempBuffer.set(bytes);
         }
         return bytes;
+    }
+
+    public static List<String> readLines(String filename) throws IOException {
+        filename = HadoopFileUtils.normalizeFileName(filename);
+        Path path = new Path(filename);
+        BufferedReader in = null;
+        try {
+            List<String> responseData = new ArrayList<String>();
+            FileSystem fs = path.getFileSystem(CONF);
+
+            FSDataInputStream inputStream = fs.open(path);
+            in = new BufferedReader(new InputStreamReader(inputStream));
+            String line;
+            while ((line = in.readLine()) != null) {
+                responseData.add(line);
+            }
+
+            return responseData;
+        } catch (IOException e) {
+            logger.error(e.getMessage());
+            throw e;
+        } finally {
+            closeWithExceptionThrow(in);
+        }
+    }
+
+    public static long fileSize(String filename) throws IOException {
+        filename = HadoopFileUtils.normalizeFileName(filename);
+        Path path = new Path(filename);
+
+        try {
+            FileSystem fs = path.getFileSystem(CONF);
+            FileStatus fileStatus = fs.getFileStatus(path);
+            return fileStatus.getLen();
+        } catch (IOException e) {
+            logger.error(e.getMessage());
+            throw e;
+        }
+    }
+
+    private static void closeWithExceptionThrow(Closeable closeable) throws IOException {
+        if (closeable == null)
+                return;
+
+        closeable.close();
     }
 }

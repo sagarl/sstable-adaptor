@@ -45,7 +45,7 @@ import java.nio.ByteBuffer;
  */
 public class ChannelProxy extends SharedCloseableImpl
 {
-    private static final Logger logger = LoggerFactory.getLogger(SSTableReader.class);
+    private static final Logger logger = LoggerFactory.getLogger(ChannelProxy.class);
 
     public static Configuration CONF = HadoopFileUtils.CONF;
     private static int DEFAULT_BUFFER_SIZE = HadoopFileUtils.DEFAULT_BUFFER_SIZE;
@@ -67,11 +67,11 @@ public class ChannelProxy extends SharedCloseableImpl
         this.fileLength = size();
     }
 
-    public static ChannelProxy getInstance(String filePath) {
-        return getInstance(filePath, DEFAULT_BUFFER_SIZE);
+    public static ChannelProxy newInstance(String filePath) {
+        return newInstance(filePath, DEFAULT_BUFFER_SIZE);
     }
 
-    public static ChannelProxy getInstance(String filePath, int bufferSize) {
+    public static ChannelProxy newInstance(String filePath, int bufferSize) {
         filePath = HadoopFileUtils.normalizeFileName(filePath);
 
         try {
@@ -81,11 +81,12 @@ public class ChannelProxy extends SharedCloseableImpl
             Cleanup cleanup = new Cleanup(filePath, inputStream);
             return new ChannelProxy(cleanup, fs, inputStream, path, bufferSize);
         } catch (IOException e) {
-            e.printStackTrace(); //TODO: using logging
+            logger.error(e.getMessage());
             return null;
         }
     }
 
+    //cannot actually share the same resource - should rename this to copy()
     public ChannelProxy sharedCopy()
     {
         try {
@@ -93,7 +94,7 @@ public class ChannelProxy extends SharedCloseableImpl
             Cleanup cleanup = new Cleanup(this.filePath(), inputStream);
             return new ChannelProxy(cleanup, this.fs, inputStream, this.filePath, this.bufferSize);
         } catch (IOException e) {
-            e.printStackTrace(); //TODO: using logging
+            logger.error(e.getMessage());
             throw new RuntimeException((e.getCause()));
         }
     }
@@ -114,7 +115,7 @@ public class ChannelProxy extends SharedCloseableImpl
         }
         catch (Exception e)
         {
-            e.printStackTrace(); //TODO: remove this? Minh
+            logger.error(e.getMessage());
             return false;
         }
     }
@@ -189,7 +190,6 @@ public class ChannelProxy extends SharedCloseableImpl
         return filePath();
     }
 
-    //TODO: Minh - do we really need this Tidy stuff or just remove it out?
     private final static class Cleanup implements RefCounted.Tidy
     {
         final String filePath;

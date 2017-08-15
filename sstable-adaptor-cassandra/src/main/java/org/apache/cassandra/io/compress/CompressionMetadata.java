@@ -68,7 +68,7 @@ public class CompressionMetadata
     public static CompressionMetadata create(String dataFilePath)
     {
         Descriptor desc = Descriptor.fromFilename(dataFilePath);
-        ChannelProxy proxy = ChannelProxy.getInstance(dataFilePath);
+        ChannelProxy proxy = ChannelProxy.newInstance(dataFilePath);
         try {
             return new CompressionMetadata(desc.filenameFor(Component.COMPRESSION_INFO),
                 proxy.size(),
@@ -85,7 +85,7 @@ public class CompressionMetadata
         this.indexFilePath = indexFilePath;
         this.checksumType = checksumType;
 
-        try (ChannelProxy proxy = ChannelProxy.getInstance(indexFilePath);
+        try (ChannelProxy proxy = ChannelProxy.newInstance(indexFilePath);
              DataInputStream stream = new DataInputStream(proxy.getInputStream()))
         {
             String compressorName = stream.readUTF();

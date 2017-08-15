@@ -30,7 +30,15 @@ import org.apache.cassandra.concurrent.NamedThreadFactory;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.SchemaConstants;
-import org.apache.cassandra.db.*;
+import org.apache.cassandra.db.ClusteringComparator;
+import org.apache.cassandra.db.ColumnFamilyStore;
+import org.apache.cassandra.db.DataRange;
+import org.apache.cassandra.db.DecoratedKey;
+import org.apache.cassandra.db.PartitionPosition;
+import org.apache.cassandra.db.RowIndexEntry;
+import org.apache.cassandra.db.SerializationHeader;
+import org.apache.cassandra.db.Slices;
+import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.db.filter.ColumnFilter;
 import org.apache.cassandra.db.rows.EncodingStats;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
@@ -38,11 +46,35 @@ import org.apache.cassandra.dht.AbstractBounds;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.io.compress.CompressionMetadata;
-import org.apache.cassandra.io.sstable.*;
-import org.apache.cassandra.io.sstable.metadata.*;
-import org.apache.cassandra.io.util.*;
+import org.apache.cassandra.io.sstable.BloomFilterTracker;
+import org.apache.cassandra.io.sstable.Component;
+import org.apache.cassandra.io.sstable.CorruptSSTableException;
+import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.io.sstable.Downsampling;
+import org.apache.cassandra.io.sstable.ISSTableScanner;
+import org.apache.cassandra.io.sstable.IndexSummary;
+import org.apache.cassandra.io.sstable.IndexSummaryBuilder;
+import org.apache.cassandra.io.sstable.SSTable;
+import org.apache.cassandra.io.sstable.metadata.CompactionMetadata;
+import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
+import org.apache.cassandra.io.sstable.metadata.MetadataType;
+import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
+import org.apache.cassandra.io.sstable.metadata.ValidationMetadata;
+import org.apache.cassandra.io.util.BufferedDataOutputStreamPlus;
+import org.apache.cassandra.io.util.ChannelProxy;
+import org.apache.cassandra.io.util.DataOutputStreamPlus;
+import org.apache.cassandra.io.util.FileDataInput;
+import org.apache.cassandra.io.util.FileHandle;
+import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.io.util.HadoopFileUtils;
+import org.apache.cassandra.io.util.RandomAccessReader;
 import org.apache.cassandra.metrics.RestorableMeter;
-import org.apache.cassandra.utils.*;
+import org.apache.cassandra.utils.ByteBufferUtil;
+import org.apache.cassandra.utils.EstimatedHistogram;
+import org.apache.cassandra.utils.FBUtilities;
+import org.apache.cassandra.utils.FilterFactory;
+import org.apache.cassandra.utils.IFilter;
+import org.apache.cassandra.utils.Pair;
 import org.apache.cassandra.utils.concurrent.OpOrder;
 import org.apache.cassandra.utils.concurrent.Ref;
 import org.apache.cassandra.utils.concurrent.SelfRefCounted;
@@ -55,8 +87,20 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -330,6 +374,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                                       boolean validate,
                                       boolean trackHotness) throws IOException
     {
+        logger.info("In SSTableReader.open() .... ");
         // Minimum components without which we can't do anything
         assert components.contains(Component.DATA) : "Data component is missing for sstable " + descriptor;
         assert !validate || components.contains(Component.PRIMARY_INDEX) : "Primary index component is missing for sstable " + descriptor;
@@ -355,8 +400,11 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
             System.exit(1);
         }
 
-        long fileLength = new File(descriptor.filenameFor(Component.DATA)).length();
-        logger.debug("Opening {} ({})", descriptor, FBUtilities.prettyPrintMemory(fileLength));
+        long fileLength = HadoopFileUtils.fileSize(descriptor.filenameFor(Component.DATA));
+        logger.debug("Opening {} {})",
+                         descriptor.filenameFor(Component.DATA),
+                         FBUtilities.prettyPrintMemory(fileLength));
+
         SSTableReader sstable = internalOpen(descriptor,
                                              components,
                                              metadata,
@@ -364,7 +412,6 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                                              statsMetadata,
                                              OpenReason.NORMAL,
                                              header == null ? null : header.toHeader(metadata));
-
         try
         {
             // load index and filter
@@ -475,18 +522,6 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         return dfile.path();
     }
 
-    public void setupOnline()
-    {
-        // under normal operation we can do this at any time, but SSTR is also used outside C* proper,
-        // e.g. by BulkLoader, which does not initialize the cache.  As a kludge, we set up the cache
-        // here when we know we're being wired into the rest of the server infrastructure.
-
-        //final ColumnFamilyStore cfs = Schema.instance.getColumnFamilyStoreInstance(metadata.cfId);
-        //if (cfs != null)
-        //    setCrcCheckChance(cfs.getCrcCheckChance());
-    }
-
-
     private void load(ValidationMetadata validation) throws IOException
     {
         // bf is disabled.
@@ -515,7 +550,8 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
             }
 
             int dataBufferSize = optimizationStrategy.bufferSize(sstableMetadata.estimatedPartitionSize.percentile(DatabaseDescriptor.getDiskOptimizationEstimatePercentile()));
-
+            logger.info("dataBufferSize: " + dataBufferSize);
+            logger.info("components: " + components);
             if (components.contains(Component.PRIMARY_INDEX))
             {
                 //long indexFileLength = new File(descriptor.filenameFor(Component.PRIMARY_INDEX)).length();
@@ -523,7 +559,8 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                 //int indexBufferSize = optimizationStrategy.bufferSize(indexFileLength / indexSummary.size());
                 //ifile = ibuilder.bufferSize(indexBufferSize).complete();
                 //ifile = ibuilder.withOptimizationStrategy(optimizationStrategy).withIndexSummarySize(indexSummary.size()).complete();
-                ifile = ibuilder.complete(); //TODO: need to revisit this to set the bufferSize
+                logger.info("loading ifile");
+                ifile = ibuilder.bufferSize(dataBufferSize).complete(); //TODO: need to revisit this to set the bufferSize
             }
 
             dfile = dbuilder.bufferSize(dataBufferSize).complete();
@@ -626,7 +663,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         String indexSummaryFilename = descriptor.filenameFor(Component.SUMMARY);
         //File summariesFile = null;
 
-        ChannelProxy proxy = ChannelProxy.getInstance(indexSummaryFilename);
+        ChannelProxy proxy = ChannelProxy.newInstance(indexSummaryFilename);
         DataInputStream iStream = null;
         try {
 
@@ -804,36 +841,6 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         synchronized (tidy.global)
         {
             return cloneAndReplace(restoredStart, OpenReason.NORMAL);
-        }
-    }
-
-    private static class DropPageCache implements Runnable
-    {
-        final FileHandle dfile;
-        final long dfilePosition;
-        final FileHandle ifile;
-        final long ifilePosition;
-        final Runnable andThen;
-
-        private DropPageCache(FileHandle dfile, long dfilePosition, FileHandle ifile, long ifilePosition, Runnable andThen)
-        {
-            this.dfile = dfile;
-            this.dfilePosition = dfilePosition;
-            this.ifile = ifile;
-            this.ifilePosition = ifilePosition;
-            this.andThen = andThen;
-        }
-
-        public void run()
-        {
-            //dfile.dropPageCache(dfilePosition);
-            dfile.close();
-            if (ifile != null)
-                ifile.close();
-                //ifile.dropPageCache(ifilePosition);
-
-            if (andThen != null)
-                andThen.run();
         }
     }
 
@@ -1083,10 +1090,14 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
      */
     public List<Pair<Long,Long>> getPositionsForRanges(Collection<Range<Token>> ranges)
     {
+        logger.info("getPositionsForRanges: ranges: " + ranges);
+
         // use the index to determine a minimal section for each range
         List<Pair<Long,Long>> positions = new ArrayList<>();
         for (Range<Token> range : Range.normalize(ranges))
         {
+            logger.info("sub-range: " + range);
+
             assert !range.isWrapAround() || range.right.isMinimum();
             // truncate the range so it at most covers the sstable
             AbstractBounds<PartitionPosition> bounds = Range.makeRowRange(range);
@@ -1095,6 +1106,8 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
 
             if (leftBound.compareTo(last) > 0 || rightBound.compareTo(first) < 0)
                 continue;
+
+            logger.info("leftBound: " + leftBound);
 
             long left = getPosition(leftBound, Operator.GT).position;
             long right = (rightBound.compareTo(last) > 0)

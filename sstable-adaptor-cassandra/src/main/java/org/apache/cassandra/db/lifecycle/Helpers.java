@@ -71,16 +71,6 @@ class Helpers
      * A convenience method for encapsulating this action over multiple SSTableReader with exception-safety
      * @return accumulate if not null (with any thrown exception attached), or any thrown exception otherwise
      */
-    static void setupOnline(Iterable<SSTableReader> readers)
-    {
-        for (SSTableReader reader : readers)
-            reader.setupOnline();
-    }
-
-    /**
-     * A convenience method for encapsulating this action over multiple SSTableReader with exception-safety
-     * @return accumulate if not null (with any thrown exception attached), or any thrown exception otherwise
-     */
     static Throwable setReplaced(Iterable<SSTableReader> readers, Throwable accumulate)
     {
         for (SSTableReader reader : readers)

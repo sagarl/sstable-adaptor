@@ -19,7 +19,6 @@ package org.apache.cassandra.io.sstable;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channel;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -44,7 +43,6 @@ import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.memory.HeapAllocator;
-import org.apache.cassandra.utils.Pair;
 
 /**
  * This class is built on top of the SequenceFile. It stores
@@ -175,6 +173,7 @@ public abstract class SSTable
      */
     public static Set<Component> componentsFor(final Descriptor desc)
     {
+        logger.info("Loading components for " + desc);
         try
         {
             try
@@ -241,10 +240,17 @@ public abstract class SSTable
     public long bytesOnDisk()
     {
         long bytes = 0;
-        for (Component component : components)
+        try
         {
-            bytes += new File(descriptor.filenameFor(component)).length();
+            for (Component component : components) {
+                bytes += HadoopFileUtils.fileSize(descriptor.filenameFor(component));
+            }
         }
+        catch (IOException e)
+        {
+           logger.error(e.getMessage());
+        }
+
         return bytes;
     }
 
@@ -256,32 +262,8 @@ public abstract class SSTable
                ')';
     }
 
-    private static List<String> readLines(File tocFile) throws IOException {
-        String filename = tocFile.getPath();
-        if (filename.startsWith("s3a:/")) {
-            filename = "s3a://" + filename.substring(5);
-
-            Path path = new Path(filename);
-
-            try {
-                List<String> responseData = new ArrayList<String>();
-                FileSystem fs = path.getFileSystem(ChannelProxy.CONF);
-
-                FSDataInputStream inputStream = fs.open(path);
-                BufferedReader in = new BufferedReader(new InputStreamReader(inputStream));
-                String line;
-                while ((line = in.readLine()) != null) {
-                    responseData.add(line);
-                }
-
-                return responseData;
-            } catch (IOException e) {
-                //e.printStackTrace();
-                throw e;
-            }
-        }
-
-        return Files.readLines(tocFile, Charset.defaultCharset());
+    private static List<String> readLines(String filename) throws IOException {
+        return HadoopFileUtils.readLines(filename);
     }
 
     /**
@@ -290,21 +272,18 @@ public abstract class SSTable
      */
     protected static Set<Component> readTOC(Descriptor descriptor) throws IOException
     {
-        File tocFile = new File(descriptor.filenameFor(Component.TOC));
-        //List<String> componentNames = Files.readLines(tocFile, Charset.defaultCharset());
-        List<String> componentNames = readLines(tocFile);
+        List<String> componentNames = readLines(descriptor.filenameFor(Component.TOC));
         Set<Component> components = Sets.newHashSetWithExpectedSize(componentNames.size());
         for (String componentName : componentNames)
         {
+            logger.info("Checking for the existence of [" + componentName + "]");
             Component component = new Component(Component.Type.fromRepresentation(componentName), componentName);
-            try(ChannelProxy proxy = ChannelProxy.getInstance(descriptor.filenameFor(component))) {
-
-                if (!proxy.exists())
-                    logger.error("Missing component: {}", descriptor.filenameFor(component));
-                else
-                    components.add(component);
-            }
+            if (!HadoopFileUtils.exists(descriptor.filenameFor(component)))
+                logger.error("Missing component: {}", descriptor.filenameFor(component));
+            else
+                components.add(component);
         }
+
         return components;
     }
 

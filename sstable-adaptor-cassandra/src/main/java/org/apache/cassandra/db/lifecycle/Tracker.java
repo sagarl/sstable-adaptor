@@ -45,7 +45,6 @@ import static org.apache.cassandra.db.lifecycle.Helpers.abortObsoletion;
 import static org.apache.cassandra.db.lifecycle.Helpers.markObsolete;
 import static org.apache.cassandra.db.lifecycle.Helpers.notIn;
 import static org.apache.cassandra.db.lifecycle.Helpers.prepareForObsoletion;
-import static org.apache.cassandra.db.lifecycle.Helpers.setupOnline;
 import static org.apache.cassandra.db.lifecycle.View.permitCompacting;
 import static org.apache.cassandra.db.lifecycle.View.updateCompacting;
 import static org.apache.cassandra.db.lifecycle.View.updateLiveSet;
@@ -176,8 +175,6 @@ public class Tracker
 
     public void addInitialSSTables(Iterable<SSTableReader> sstables)
     {
-        if (!isDummy())
-            setupOnline(sstables);
         apply(updateLiveSet(emptySet(), sstables));
         maybeFail(updateSizeTracking(emptySet(), sstables, null));
         // no notifications or backup necessary
