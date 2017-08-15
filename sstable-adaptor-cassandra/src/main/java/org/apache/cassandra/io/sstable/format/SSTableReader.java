@@ -554,13 +554,11 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
             logger.info("components: " + components);
             if (components.contains(Component.PRIMARY_INDEX))
             {
-                //long indexFileLength = new File(descriptor.filenameFor(Component.PRIMARY_INDEX)).length();
-                //long indexFileLength = ibuilder.
-                //int indexBufferSize = optimizationStrategy.bufferSize(indexFileLength / indexSummary.size());
-                //ifile = ibuilder.bufferSize(indexBufferSize).complete();
-                //ifile = ibuilder.withOptimizationStrategy(optimizationStrategy).withIndexSummarySize(indexSummary.size()).complete();
                 logger.info("loading ifile");
-                ifile = ibuilder.bufferSize(dataBufferSize).complete(); //TODO: need to revisit this to set the bufferSize
+                long indexFileLength = HadoopFileUtils.fileSize(descriptor.filenameFor(Component.PRIMARY_INDEX));
+                int indexBufferSize = optimizationStrategy.bufferSize(indexFileLength / indexSummary.size());
+                ifile = ibuilder.bufferSize(indexBufferSize).complete();
+                //ifile = ibuilder.withOptimizationStrategy(optimizationStrategy).withIndexSummarySize(indexSummary.size()).complete();
             }
 
             dfile = dbuilder.bufferSize(dataBufferSize).complete();
