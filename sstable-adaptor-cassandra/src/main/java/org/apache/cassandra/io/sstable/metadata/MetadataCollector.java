@@ -34,6 +34,7 @@ import org.apache.cassandra.utils.StreamingHistogram;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,27 @@ public class MetadataCollector implements PartitionStatisticsCollector
         return new StreamingHistogram(SSTable.TOMBSTONE_HISTOGRAM_BIN_SIZE);
     }
 
+    public static StatsMetadata defaultStatsMetadata()
+    {
+        return new StatsMetadata(defaultPartitionSizeHistogram(),
+                defaultCellPerPartitionCountHistogram(),
+                IntervalSet.empty(),
+                Long.MIN_VALUE,
+                Long.MAX_VALUE,
+                Integer.MAX_VALUE,
+                Integer.MAX_VALUE,
+                0,
+                Integer.MAX_VALUE,
+                NO_COMPRESSION_RATIO,
+                defaultTombstoneDropTimeHistogram(),
+                0,
+                Collections.<ByteBuffer>emptyList(),
+                Collections.<ByteBuffer>emptyList(),
+                true,
+                0,
+                -1,
+                -1);
+    }
 
     protected EstimatedHistogram estimatedPartitionSize = defaultPartitionSizeHistogram();
     // TODO: cound the number of row per partition (either with the number of cells, or instead)

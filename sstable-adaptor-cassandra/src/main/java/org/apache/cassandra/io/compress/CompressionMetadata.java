@@ -34,15 +34,20 @@ import org.apache.cassandra.utils.ChecksumType;
 import org.apache.cassandra.utils.Pair;
 import org.apache.cassandra.utils.concurrent.Ref;
 import org.apache.cassandra.utils.concurrent.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Holds metadata about compressed file
  */
 public class CompressionMetadata
 {
+    private static final Logger logger = LoggerFactory.getLogger(CompressionMetadata.class);
+
     // dataLength can represent either the true length of the file
     // or some shorter value, in the case we want to impose a shorter limit on readers
     // (when early opening, we want to ensure readers cannot read past fully written sections)
@@ -65,18 +70,15 @@ public class CompressionMetadata
      *
      * @return metadata about given compressed file.
      */
-    public static CompressionMetadata create(String dataFilePath)
+    //static Map<String, CompressionMetadata> fileCompressionMetadata = new ConcurrentHashMap<>();
+    //private static Object lock = new Object();
+    public static CompressionMetadata create(String dataFilePath, long dataFileSize)
     {
         Descriptor desc = Descriptor.fromFilename(dataFilePath);
-        ChannelProxy proxy = ChannelProxy.newInstance(dataFilePath);
-        try {
-            return new CompressionMetadata(desc.filenameFor(Component.COMPRESSION_INFO),
-                proxy.size(),
+        logger.info("Creating CompressionMetadata for file [" + dataFilePath + "]");
+        return new CompressionMetadata(desc.filenameFor(Component.COMPRESSION_INFO),
+                dataFileSize,
                 desc.version.compressedChecksumType());
-        } finally
-        {
-           proxy.close();
-        }
     }
 
     @VisibleForTesting
@@ -203,6 +205,10 @@ public class CompressionMetadata
                                            indexFilePath, i, chunkCount);
                 throw new CorruptSSTableException(new IOException(msg, e), indexFilePath);
             }
+            throw new FSReadError(e, indexFilePath);
+        }
+        catch (Exception e)
+        {
             throw new FSReadError(e, indexFilePath);
         }
     }

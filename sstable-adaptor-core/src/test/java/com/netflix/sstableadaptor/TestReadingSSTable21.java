@@ -8,6 +8,7 @@ import org.apache.cassandra.cql3.statements.CreateTableStatement;
 import org.apache.cassandra.cql3.statements.ParsedStatement;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.dht.Murmur3Partitioner;
+import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -376,3 +377,5 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
     }
 
 }
+
+

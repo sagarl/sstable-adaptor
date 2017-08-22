@@ -215,7 +215,7 @@ public class FileHandle extends SharedCloseableImpl
     {
         private final String path;
 
-        private ChannelProxy channel;
+        //private ChannelProxy channel;
         private CompressionMetadata compressionMetadata;
 
         private ChunkCache chunkCache;
@@ -229,12 +229,6 @@ public class FileHandle extends SharedCloseableImpl
         public Builder(String path)
         {
             this.path = path;
-        }
-
-        public Builder(ChannelProxy channel)
-        {
-            this.channel = channel;
-            this.path = channel.filePath();
         }
 
         public Builder compressed(boolean compressed)
@@ -335,17 +329,11 @@ public class FileHandle extends SharedCloseableImpl
         @SuppressWarnings("resource")
         public FileHandle complete(long overrideLength)
         {
-            if (channel == null)
-            {
-                channel =  ChannelProxy.newInstance(path);   //new ChannelProxy(path);
-            }
-
-            ChannelProxy channelCopy = channel.sharedCopy(); //channel; //new ChannelProxy(path);
-
+            ChannelProxy channelCopy = ChannelProxy.newInstance(path);
             try
             {
                 if (compressed && compressionMetadata == null)
-                    compressionMetadata = CompressionMetadata.create(channelCopy.filePath());
+                    compressionMetadata = CompressionMetadata.create(channelCopy.filePath(), channelCopy.size());
 
                 long length = overrideLength > 0 ? overrideLength : compressed ? compressionMetadata.compressedFileLength : channelCopy.size();
 
@@ -372,9 +360,6 @@ public class FileHandle extends SharedCloseableImpl
 
         public Throwable close(Throwable accumulate)
         {
-            if (channel != null)
-                return channel.close(accumulate);
-
             return accumulate;
         }
 
@@ -385,8 +370,8 @@ public class FileHandle extends SharedCloseableImpl
 
         private RebuffererFactory maybeCached(ChunkReader reader)
         {
-            if (chunkCache != null && chunkCache.capacity() > 0)
-                return chunkCache.wrap(reader);
+            //if (chunkCache != null && chunkCache.capacity() > 0)
+            //    return chunkCache.wrap(reader);
             return reader;
         }
 

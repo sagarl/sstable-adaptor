@@ -94,6 +94,7 @@ public class FBUtilities
 
     public static final int MAX_UNSIGNED_SHORT = 0xFFFF;
 
+
     public static MessageDigest threadLocalMD5Digest()
     {
         MessageDigest md = localMD5Digest.get();
@@ -113,44 +114,6 @@ public class FBUtilities
         }
     }
 
-    /**
-     * Please use getBroadcastAddress instead. You need this only when you have to listen/connect.
-     */
-    public static InetAddress getLocalAddress()
-    {
-        if (localInetAddress == null)
-            try
-            {
-                localInetAddress = DatabaseDescriptor.getListenAddress() == null
-                                    ? InetAddress.getLocalHost()
-                                    : DatabaseDescriptor.getListenAddress();
-            }
-            catch (UnknownHostException e)
-            {
-                throw new RuntimeException(e);
-            }
-        return localInetAddress;
-    }
-
-    public static InetAddress getBroadcastAddress()
-    {
-        if (broadcastInetAddress == null)
-            broadcastInetAddress = DatabaseDescriptor.getBroadcastAddress() == null
-                                 ? getLocalAddress()
-                                 : DatabaseDescriptor.getBroadcastAddress();
-        return broadcastInetAddress;
-    }
-
-
-    public static InetAddress getBroadcastRpcAddress()
-    {
-        if (broadcastRpcAddress == null)
-            broadcastRpcAddress = DatabaseDescriptor.getBroadcastRpcAddress() == null
-                                   ? DatabaseDescriptor.getRpcAddress()
-                                   : DatabaseDescriptor.getBroadcastRpcAddress();
-        return broadcastRpcAddress;
-    }
-
     public static Collection<InetAddress> getAllLocalAddresses()
     {
         Set<InetAddress> localAddresses = new HashSet<InetAddress>();
@@ -168,26 +131,6 @@ public class FBUtilities
             throw new AssertionError(e);
         }
         return localAddresses;
-    }
-
-    public static String getNetworkInterface(InetAddress localAddress)
-    {
-        try
-        {
-            for(NetworkInterface ifc : Collections.list(NetworkInterface.getNetworkInterfaces()))
-            {
-                if(ifc.isUp())
-                {
-                    for(InetAddress addr : Collections.list(ifc.getInetAddresses()))
-                    {
-                        if (addr.equals(localAddress))
-                            return ifc.getDisplayName();
-                    }
-                }
-            }
-        }
-        catch (SocketException e) {}
-        return null;
     }
 
     /**

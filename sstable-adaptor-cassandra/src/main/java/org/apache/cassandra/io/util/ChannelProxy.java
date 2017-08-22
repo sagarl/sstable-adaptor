@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -70,6 +72,7 @@ public class ChannelProxy extends SharedCloseableImpl
     public static ChannelProxy newInstance(String filePath) {
         return newInstance(filePath, DEFAULT_BUFFER_SIZE);
     }
+
 
     public static ChannelProxy newInstance(String filePath, int bufferSize) {
         filePath = HadoopFileUtils.normalizeFileName(filePath);
@@ -209,13 +212,20 @@ public class ChannelProxy extends SharedCloseableImpl
         {
             try
             {
-                //Thread.currentThread().getStackTrace();
-                logger.debug("Cleaning ChannelProxy for file: " + filePath);
+
+                logger.info("Cleaning ChannelProxy for file: " + filePath);
                 this.inputStream.close();
             }
             catch (IOException e)
             {
-                throw new FSReadError(e, filePath);
+                //Don't propagate the exception as we are closing down
+                StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+                StringBuilder sb = new StringBuilder();
+                for (StackTraceElement element : stackTraceElements) {
+                    sb.append(element.toString());
+                }
+                logger.error(sb.toString());
+                logger.error("Exception on file: " + filePath + " with exception: " + e.getMessage());
             }
         }
     }

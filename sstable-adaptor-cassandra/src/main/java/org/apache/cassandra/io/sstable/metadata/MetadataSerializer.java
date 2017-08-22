@@ -22,6 +22,8 @@ import java.util.*;
 
 import com.google.common.collect.Lists;
 
+import com.google.common.collect.Maps;
+import org.apache.cassandra.io.util.HadoopFileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.cassandra.io.sstable.Component;
@@ -80,9 +82,8 @@ public class MetadataSerializer implements IMetadataSerializer
         Map<MetadataType, MetadataComponent> components;
         logger.trace("Load metadata for {}", descriptor);
         String statsFile = descriptor.filenameFor(Component.STATS);
-        //TODO: replace this checking Hadoop FS checking or throw exception during loading?
-        /*
-        if (!statsFile.exists())
+
+        if (!HadoopFileUtils.exists(statsFile))
         {
             logger.trace("No sstable stats for {}", descriptor);
             components = Maps.newHashMap();
@@ -95,12 +96,7 @@ public class MetadataSerializer implements IMetadataSerializer
                 components = deserialize(descriptor, r, types);
             }
         }
-        */
 
-        try (RandomAccessReader r = RandomAccessReader.open(statsFile))
-        {
-            components = deserialize(descriptor, r, types);
-        }
         return components;
     }
 

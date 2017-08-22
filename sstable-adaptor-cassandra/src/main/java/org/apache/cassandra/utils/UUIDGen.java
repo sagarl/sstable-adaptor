@@ -106,10 +106,10 @@ public class UUIDGen
     }
 
     /**
-     * Similar to {@link getTimeUUIDFromMicros}, but randomize (using SecureRandom) the clock and sequence.
+     * Similar to getTimeUUIDFromMicros, but randomize (using SecureRandom) the clock and sequence.
      * <p>
      * If you can guarantee that the {@code whenInMicros} argument is unique (for this JVM instance) for
-     * every call, then you should prefer {@link getTimeUUIDFromMicros} which is faster. If you can't
+     * every call, then you should prefer getTimeUUIDFromMicros which is faster. If you can't
      * guarantee this however, this method will ensure the returned UUID are still unique (accross calls)
      * through randomization.
      *

@@ -18,12 +18,8 @@
 package org.apache.cassandra.db.lifecycle;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.cassandra.config.CFMetaData;
-import org.apache.cassandra.db.ColumnFamilyStore;
-import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.db.compaction.OperationType;
-import org.apache.cassandra.db.lifecycle.LogRecord.Type;
 import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.SSTable;
@@ -42,9 +38,9 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
-import java.util.*;
+import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Predicate;
 
 /**
  * IMPORTANT: When this object is involved in a transactional graph, and is not encapsulated in a LifecycleTransaction,
@@ -260,6 +256,7 @@ class LogTransaction extends Transactional.AbstractTransactional implements Tran
 
         public void run()
         {
+            logger.info("SSTableTidier is running..");
             if (tracker != null && !tracker.isDummy())
                 SystemKeyspace.clearSSTableReadMeter(desc.ksname, desc.cfname, desc.generation);
 
@@ -283,8 +280,8 @@ class LogTransaction extends Transactional.AbstractTransactional implements Tran
                 return;
             }
 
-            if (tracker != null && tracker.cfstore != null && !wasNew)
-                tracker.cfstore.metric.totalDiskSpaceUsed.dec(sizeOnDisk);
+            //if (tracker != null && tracker.cfstore != null && !wasNew)
+            //    tracker.cfstore.metric.totalDiskSpaceUsed.dec(sizeOnDisk);
 
             // release the referent to the parent so that the all transaction files can be released
             parentRef.release();

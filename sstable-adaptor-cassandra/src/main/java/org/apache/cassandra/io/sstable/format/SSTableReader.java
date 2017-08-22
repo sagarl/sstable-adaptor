@@ -25,13 +25,11 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.RateLimiter;
-import org.apache.cassandra.cache.ChunkCache;
 import org.apache.cassandra.concurrent.NamedThreadFactory;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.SchemaConstants;
 import org.apache.cassandra.db.ClusteringComparator;
-import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.DataRange;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.PartitionPosition;
@@ -75,8 +73,8 @@ import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.FilterFactory;
 import org.apache.cassandra.utils.IFilter;
 import org.apache.cassandra.utils.Pair;
-import org.apache.cassandra.utils.concurrent.OpOrder;
 import org.apache.cassandra.utils.concurrent.Ref;
+import org.apache.cassandra.utils.concurrent.ScheduledExecutors;
 import org.apache.cassandra.utils.concurrent.SelfRefCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -354,12 +352,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
     public static SSTableReader open(Descriptor descriptor, Set<Component> components, CFMetaData metadata) throws IOException
     {
         return open(descriptor, components, metadata, true, true);
-    }
 
-    // use only for offline or "Standalone" operations
-    public static SSTableReader openNoValidation(Descriptor descriptor, Set<Component> components, ColumnFamilyStore cfs) throws IOException
-    {
-        return open(descriptor, components, cfs.metadata, false, false); // do not track hotness
     }
 
     // use only for offline or "Standalone" operations
@@ -374,7 +367,6 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                                       boolean validate,
                                       boolean trackHotness) throws IOException
     {
-        logger.info("In SSTableReader.open() .... ");
         // Minimum components without which we can't do anything
         assert components.contains(Component.DATA) : "Data component is missing for sstable " + descriptor;
         assert !validate || components.contains(Component.PRIMARY_INDEX) : "Primary index component is missing for sstable " + descriptor;
@@ -401,7 +393,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         }
 
         long fileLength = HadoopFileUtils.fileSize(descriptor.filenameFor(Component.DATA));
-        logger.debug("Opening {} {})",
+        logger.info("Opening {} {})",
                          descriptor.filenameFor(Component.DATA),
                          FBUtilities.prettyPrintMemory(fileLength));
 
@@ -417,7 +409,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
             // load index and filter
             long start = System.nanoTime();
             sstable.load(validationMetadata);
-            logger.trace("INDEX LOAD TIME for {}: {} ms.", descriptor, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+            logger.info("INDEX LOAD TIME for {}: {} ms.", descriptor, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 
             sstable.setup(trackHotness);
             if (validate)
@@ -536,10 +528,10 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
      */
     private void load(boolean recreateBloomFilter, boolean saveSummaryIfCreated) throws IOException
     {
-        try(FileHandle.Builder ibuilder = new FileHandle.Builder(descriptor.filenameFor(Component.PRIMARY_INDEX))
-                                                     .withChunkCache(ChunkCache.instance);
-            FileHandle.Builder dbuilder = new FileHandle.Builder(descriptor.filenameFor(Component.DATA)).compressed(compression)
-                                                     .withChunkCache(ChunkCache.instance))
+        try(FileHandle.Builder ibuilder = new FileHandle.Builder(descriptor.filenameFor(Component.PRIMARY_INDEX));
+                                                     //.withChunkCache(ChunkCache.instance);
+            FileHandle.Builder dbuilder = new FileHandle.Builder(descriptor.filenameFor(Component.DATA)).compressed(compression))
+
         {
             boolean summaryLoaded = loadSummary();
             boolean builtSummary = false;
@@ -1701,6 +1693,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
 
         void setup(SSTableReader reader, boolean trackHotness)
         {
+            logger.info("Setting up references!!!");
             this.setup = true;
             this.bf = reader.bf;
             this.summary = reader.indexSummary;
@@ -1721,30 +1714,14 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
 
         public void tidy()
         {
-            if (logger.isTraceEnabled())
-                logger.trace("Running instance tidier for {} with setup {}", descriptor, setup);
+            logger.debug("Running instance tidier for {} with setup {}", descriptor, setup);
 
-            // don't try to cleanup if the sstablereader was never fully constructed
-            if (!setup)
-                return;
-
-
-            final OpOrder.Barrier barrier = null;
-
-
-            /*
             ScheduledExecutors.nonPeriodicTasks.execute(new Runnable()
             {
                 public void run()
                 {
                     if (logger.isTraceEnabled())
-                        logger.trace("Async instance tidier for {}, before barrier", descriptor);
-
-                    if (barrier != null)
-                        barrier.await();
-
-                    if (logger.isTraceEnabled())
-                        logger.trace("Async instance tidier for {}, after barrier", descriptor);
+                        logger.trace("Async instance tidier for {}", descriptor);
 
                     if (bf != null)
                         bf.close();
@@ -1756,22 +1733,13 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                         dfile.close();
                     if (ifile != null)
                         ifile.close();
-                    globalRef.release();
+                    if (global != null)
+                        globalRef.release();
 
                     if (logger.isTraceEnabled())
                         logger.trace("Async instance tidier for {}, completed", descriptor);
                 }
             });
-            */
-
-            if (logger.isTraceEnabled())
-                logger.trace("Async instance tidier for {}, before barrier", descriptor);
-
-            if (barrier != null)
-                barrier.await();
-
-            if (logger.isTraceEnabled())
-                logger.trace("Async instance tidier for {}, after barrier", descriptor);
 
             if (bf != null)
                 bf.close();
@@ -1783,7 +1751,8 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                 dfile.close();
             if (ifile != null)
                 ifile.close();
-            globalRef.release();
+            if (global != null)
+                globalRef.release();
 
             if (logger.isTraceEnabled())
                 logger.trace("Async instance tidier for {}, completed", descriptor);
@@ -1836,17 +1805,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
             if (readMeter != null)
                 return;
 
-            // Don't track read rates for tables in the system keyspace and don't bother trying to load or persist
-            // the read meter when in client mode.
-            // Also, do not track read rates when running in client or tools mode (syncExecuter isn't available in these modes)
-            if (SchemaConstants.isSystemKeyspace(desc.ksname) || DatabaseDescriptor.isClientOrToolInitialized())
-            {
-                readMeter = null;
-                readMeterSyncFuture = NULL;
-                return;
-            }
-
-            readMeter = SystemKeyspace.getSSTableReadMeter(desc.ksname, desc.cfname, desc.generation);
+            //readMeter = SystemKeyspace.getSSTableReadMeter(desc.ksname, desc.cfname, desc.generation);
             // sync the average read rate to system.sstable_activity every five minutes, starting one minute from now
             readMeterSyncFuture = new WeakReference<>(syncExecutor.scheduleAtFixedRate(new Runnable()
             {
@@ -1855,7 +1814,6 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                     if (obsoletion == null)
                     {
                         meterSyncThrottle.acquire();
-                        SystemKeyspace.persistSSTableReadMeter(desc.ksname, desc.cfname, desc.generation, readMeter);
                     }
                 }
             }, 1, 5, TimeUnit.MINUTES));

@@ -65,8 +65,8 @@ public class TestBaseSSTableFunSuite {
     public static void setup() throws Exception {
         LOGGER.info("Running TestBaseSSTableFunSuite setup ...");
         System.setProperty("hadoop.home.dir", "/");
-        DatabaseDescriptor.getRawConfig().file_cache_size_in_mb =
-                      Math.min(512, (int) (Runtime.getRuntime().maxMemory() / (4 * 1048576)));
+        //DatabaseDescriptor.getRawConfig().file_cache_size_in_mb =
+        //              Math.min(512, (int) (Runtime.getRuntime().maxMemory() / (4 * 1048576)));
     }
 
     /**

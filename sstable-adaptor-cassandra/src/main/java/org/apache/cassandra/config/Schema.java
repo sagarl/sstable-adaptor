@@ -17,16 +17,12 @@
  */
 package org.apache.cassandra.config;
 
-import org.apache.cassandra.db.ColumnFamilyStore;
-import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.utils.ConcurrentBiMap;
 import org.apache.cassandra.utils.Pair;
-import org.cliffc.high_scale_lib.NonBlockingHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
 import java.util.UUID;
 
 public class Schema
@@ -45,11 +41,6 @@ public class Schema
      */
     public Schema()
     {
-    }
-
-    public ColumnFamilyStore getColumnFamilyStoreInstance(UUID cfId)
-    {
-        return null;
     }
 
     /**

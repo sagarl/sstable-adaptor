@@ -20,6 +20,7 @@ package org.apache.cassandra.io.util;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.atomic.AtomicLong;
 
 import net.nicoulaj.compilecommand.annotations.Inline;
 

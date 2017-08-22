@@ -164,10 +164,10 @@ public class Tracker
         }
 
         //StorageMetrics.load.inc(add - subtract);
-        cfstore.metric.liveDiskSpaceUsed.inc(add - subtract);
+       // cfstore.metric.liveDiskSpaceUsed.inc(add - subtract);
 
         // we don't subtract from total until the sstable is deleted, see TransactionLogs.SSTableTidier
-        cfstore.metric.totalDiskSpaceUsed.inc(add);
+        //cfstore.metric.totalDiskSpaceUsed.inc(add);
         return accumulate;
     }
 

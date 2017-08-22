@@ -33,6 +33,8 @@ import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
 import org.apache.cassandra.io.util.HadoopFileUtils;
 import org.apache.cassandra.utils.EstimatedHistogram;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -48,6 +50,7 @@ import java.util.List;
  *  @author mdo
  */
 public class SSTableSingleReader {
+    private static final Logger LOGGER  = LoggerFactory.getLogger(SSTableSingleReader.class);
     private String fileLocation;
     private long fileLength;
     private int version;  //sstable version according to C*
@@ -345,7 +348,8 @@ public class SSTableSingleReader {
      * Close resources.
      */
     public void close() {
-        this.sstableReader.selfRef().close();
+        LOGGER.info("Closing down!!! Calling SSTableReader.close()");
+        //this.sstableReader.selfRef().close();
         sstableReader.close();
     }
 

@@ -47,15 +47,6 @@ public class Keyspace
             DatabaseDescriptor.createAllDirectories();
     }
 
-    //OpOrder is defined globally since we need to order writes across
-    //Keyspaces in the case of Views (batchlog of view mutations)
-    public static final OpOrder writeOrder = new OpOrder();
-
-    /* ColumnFamilyStore per column family */
-    private final ConcurrentMap<UUID, ColumnFamilyStore> columnFamilyStores = new ConcurrentHashMap<>();
-
-    private static volatile boolean initialized = false;
-
     public List<Future<?>> flush()
     {
         return null;

@@ -17,20 +17,22 @@
  */
 package org.apache.cassandra.utils.memory;
 
+import com.sun.jna.Native;
+import org.apache.cassandra.utils.Architecture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import sun.misc.Unsafe;
+import sun.nio.ch.DirectBuffer;
+
 import java.lang.reflect.Field;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-
-import com.sun.jna.Native;
-
-import org.apache.cassandra.utils.Architecture;
-
-import sun.misc.Unsafe;
-import sun.nio.ch.DirectBuffer;
+import java.util.concurrent.atomic.AtomicLong;
 
 public abstract class MemoryUtil
 {
+    private static final Logger LOGGER  = LoggerFactory.getLogger(MemoryUtil.class);
     private static final long UNSAFE_COPY_THRESHOLD = 1024 * 1024L; // copied from java.nio.Bits
 
     private static final Unsafe unsafe;
@@ -44,8 +46,8 @@ public abstract class MemoryUtil
     private static final long BYTE_BUFFER_OFFSET_OFFSET;
     private static final long BYTE_BUFFER_HB_OFFSET;
     private static final long BYTE_ARRAY_BASE_OFFSET;
-
     private static final boolean BIG_ENDIAN = ByteOrder.nativeOrder().equals(ByteOrder.BIG_ENDIAN);
+    private static AtomicLong ALLOCATED_SIZE = new AtomicLong(0);
 
     public static final boolean INVERTED_ORDER = Architecture.IS_UNALIGNED && !BIG_ENDIAN;
 
@@ -91,12 +93,27 @@ public abstract class MemoryUtil
 
     public static long allocate(long size)
     {
+        long sizeInMb = size/1048576;
+        long totalSize = ALLOCATED_SIZE.addAndGet(sizeInMb);
+        LOGGER.info("Allocating off-heap memory block of " + sizeInMb +
+                    "Mb and total allocated off-heap memory size is " + (totalSize/1048576) + "Mb");
         return Native.malloc(size);
     }
 
     public static void free(long peer)
     {
+        long sizeInMb = peer/1048576;
+        long totalSize = ALLOCATED_SIZE.addAndGet(-1 * sizeInMb);
+
+        if (totalSize < 0) {
+            ALLOCATED_SIZE.set(0);
+            totalSize = 0;
+        }
+
+        LOGGER.info("Freeing off-heap memory block of " + sizeInMb +
+                "Mb and total allocated off-heap memory size is " + (totalSize/1048576) + "Mb");
         Native.free(peer);
+
     }
 
     public static void setByte(long address, byte b)
