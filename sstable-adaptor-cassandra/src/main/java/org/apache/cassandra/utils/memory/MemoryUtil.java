@@ -28,6 +28,8 @@ import java.lang.reflect.Field;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 public abstract class MemoryUtil
@@ -91,28 +93,33 @@ public abstract class MemoryUtil
         return unsafe.getLong(buffer, DIRECT_BYTE_BUFFER_ADDRESS_OFFSET);
     }
 
+    private static Map<Long, Long> memTracker = new ConcurrentHashMap<Long, Long>();
+
     public static long allocate(long size)
     {
         long sizeInMb = size/1048576;
-        long totalSize = ALLOCATED_SIZE.addAndGet(sizeInMb);
+        long totalSizeInMb = ALLOCATED_SIZE.addAndGet(size)/1048576;
         LOGGER.info("Allocating off-heap memory block of " + sizeInMb +
-                    "Mb and total allocated off-heap memory size is " + (totalSize/1048576) + "Mb");
-        return Native.malloc(size);
+                    "Mb and total allocated off-heap memory size is " + totalSizeInMb + "Mb");
+        long retAddr = Native.malloc(size);
+        memTracker.put(retAddr, size);
+        return retAddr;
     }
 
     public static void free(long peer)
     {
-        long sizeInMb = peer/1048576;
-        long totalSize = ALLOCATED_SIZE.addAndGet(-1 * sizeInMb);
+        long sizeInBytes = memTracker.get(peer);
+        long totalSizeInBytes = ALLOCATED_SIZE.addAndGet(-1 * sizeInBytes);
 
-        if (totalSize < 0) {
+        if (totalSizeInBytes < 0) {
             ALLOCATED_SIZE.set(0);
-            totalSize = 0;
+            totalSizeInBytes = 0;
         }
 
-        LOGGER.info("Freeing off-heap memory block of " + sizeInMb +
-                "Mb and total allocated off-heap memory size is " + (totalSize/1048576) + "Mb");
+        LOGGER.info("Freeing off-heap memory block of " + (sizeInBytes/1048576) +
+                "Mb and total allocated off-heap memory size is " + (totalSizeInBytes/1048576) + "Mb");
         Native.free(peer);
+        memTracker.remove(peer);
 
     }
 

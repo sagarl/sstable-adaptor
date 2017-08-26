@@ -104,7 +104,7 @@ import static org.apache.cassandra.utils.Throwables.merge;
 public final class Ref<T> implements RefCounted<T>
 {
     static final Logger logger = LoggerFactory.getLogger(Ref.class);
-    public static final boolean DEBUG_ENABLED = System.getProperty("cassandra.debugrefcount", "true").equalsIgnoreCase("true");
+    public static final boolean DEBUG_ENABLED = System.getProperty("cassandra.debugrefcount", "false").equalsIgnoreCase("true");
 
     final State state;
     final T referent;
