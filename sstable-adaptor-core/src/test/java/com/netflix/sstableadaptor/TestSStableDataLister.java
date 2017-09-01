@@ -19,13 +19,9 @@ package com.netflix.sstableadaptor;
 
 import com.netflix.sstableadaptor.sstable.SSTableIterator;
 import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
-import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
-import org.apache.cassandra.db.rows.Cell;
-import org.apache.cassandra.db.rows.Row;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
-import org.apache.cassandra.utils.ByteBufferUtil;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -34,9 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -82,12 +76,11 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testOnLocalDataSimplePartitionKey() {
-        //final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
-        final String inputSSTableFullPathFileName = "/Users/minhdo/workspace2/BDP/cassandra-2/data/data/casspactor22/compressed_bills-730b1480644011e7b58753b84b6a56cd/lb-1-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
         final int counter = getRowCount(inputSSTableFullPathFileName);
 
         LOGGER.info("\nCounter: " + counter);
-        //Assert.assertEquals(4, counter);
+        Assert.assertEquals(4, counter);
     }
 
     /**
@@ -157,7 +150,9 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
             while (currentScanner.hasNext()) {
                 while (currentScanner.hasNext()) {
                     final UnfilteredRowIterator unfilteredRowIterator = currentScanner.next();
-                    counter += printRowDetails(sstableSingleReader.getCfMetaData(), unfilteredRowIterator, false);
+                    counter += printRowDetails(sstableSingleReader.getCfMetaData(),
+                                               unfilteredRowIterator,
+                                              false);
                 }
             }
         } catch (IOException e) {
@@ -195,4 +190,43 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
         Assert.assertEquals(4, counter);
     }
 
+    @Test
+    public void TestMixedFormatRead() throws IOException {
+        String inputCql = "CREATE TABLE keyspace1.auditlogsbyid (\n    " +
+                "auditlogid timeuuid PRIMARY KEY,\n    createddate text,\n    " +
+                "payload text\n) WITH " +
+                "compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'}\n    " +
+                "AND compression = {'sstable_compression': 'org.apache.cassandra.io.compress.LZ4Compressor'};";
+
+        CFMetaData cfMetaData = CFMetaData.compile(inputCql,
+                                                   "casspactor",
+                                                   "org.apache.cassandra.dht.RandomPartitioner");
+
+        final SSTableSingleReader cass21Reader0 =
+                new SSTableSingleReader(CASS21_DATA_DIR + "auditlogsbyid/keyspace1-auditlogsbyid-ka-1-Data.db",
+                                        cfMetaData);
+        final SSTableSingleReader cass21Reader1 =
+                new SSTableSingleReader(CASS21_DATA_DIR + "auditlogsbyid/keyspace1-auditlogsbyid-ka-3-Data.db",
+                                        cfMetaData);
+        final SSTableSingleReader cass3Reader =
+                new SSTableSingleReader(CASS3_DATA_DIR + "auditlogsbyid/mc-1-big-Data.db ");
+
+
+        final List<ISSTableScanner> scanners = new ArrayList<>();
+        final int nowInSecs = (int) (System.currentTimeMillis() / 1000);
+
+        scanners.add(cass21Reader0.getSSTableScanner());
+        scanners.add(cass21Reader1.getSSTableScanner());
+        scanners.add(cass3Reader.getSSTableScanner());
+
+        int counter = 0;
+        try (SSTableIterator ci = new SSTableIterator(scanners, cass21Reader0.getCfMetaData(), nowInSecs)) {
+            while (ci.hasNext()) {
+                final UnfilteredRowIterator unfilteredRowIterator = ci.next();
+                counter += printRowDetails(cfMetaData, unfilteredRowIterator, false);
+            }
+        }
+
+        Assert.assertEquals(5, counter);
+    }
 }

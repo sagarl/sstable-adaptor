@@ -28,7 +28,6 @@ import com.google.common.util.concurrent.RateLimiter;
 import org.apache.cassandra.concurrent.NamedThreadFactory;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.config.SchemaConstants;
 import org.apache.cassandra.db.ClusteringComparator;
 import org.apache.cassandra.db.DataRange;
 import org.apache.cassandra.db.DecoratedKey;
@@ -36,7 +35,6 @@ import org.apache.cassandra.db.PartitionPosition;
 import org.apache.cassandra.db.RowIndexEntry;
 import org.apache.cassandra.db.SerializationHeader;
 import org.apache.cassandra.db.Slices;
-import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.db.filter.ColumnFilter;
 import org.apache.cassandra.db.rows.EncodingStats;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
@@ -389,7 +387,10 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         {
             logger.error("Cannot open {}; partitioner {} does not match system partitioner {}.  Note that the default partitioner starting with Cassandra 1.2 is Murmur3Partitioner, so you will need to edit that to match your old partitioner if upgrading.",
                          descriptor, validationMetadata.partitioner, partitionerName);
-            System.exit(1);
+            throw new IOException("Cannot open " + descriptor + "; partitioner " + validationMetadata.partitioner +
+                                  " does not match system partitioner " + partitionerName +
+                                  ".  Note that the default partitioner starting with Cassandra 1.2 is Murmur3Partitioner," +
+                                  " so you will need to edit that to match your old partitioner if upgrading.");
         }
 
         long fileLength = HadoopFileUtils.fileSize(descriptor.filenameFor(Component.DATA));
@@ -1716,31 +1717,6 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         {
             logger.debug("Running instance tidier for {} with setup {}", descriptor, setup);
 
-            ScheduledExecutors.nonPeriodicTasks.execute(new Runnable()
-            {
-                public void run()
-                {
-                    if (logger.isTraceEnabled())
-                        logger.trace("Async instance tidier for {}", descriptor);
-
-                    if (bf != null)
-                        bf.close();
-                    if (summary != null)
-                        summary.close();
-                    if (runOnClose != null)
-                        runOnClose.run();
-                    if (dfile != null)
-                        dfile.close();
-                    if (ifile != null)
-                        ifile.close();
-                    if (global != null)
-                        globalRef.release();
-
-                    if (logger.isTraceEnabled())
-                        logger.trace("Async instance tidier for {}, completed", descriptor);
-                }
-            });
-
             if (bf != null)
                 bf.close();
             if (summary != null)
@@ -1755,7 +1731,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                 globalRef.release();
 
             if (logger.isTraceEnabled())
-                logger.trace("Async instance tidier for {}, completed", descriptor);
+                logger.trace("Instance tidier for {}, completed", descriptor);
         }
 
         public String name()

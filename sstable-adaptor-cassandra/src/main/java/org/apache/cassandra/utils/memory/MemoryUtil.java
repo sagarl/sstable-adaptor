@@ -93,7 +93,7 @@ public abstract class MemoryUtil
         return unsafe.getLong(buffer, DIRECT_BYTE_BUFFER_ADDRESS_OFFSET);
     }
 
-    private static Map<Long, Long> memTracker = new ConcurrentHashMap<Long, Long>();
+    private static Map<Long, Long> memTracker = new ConcurrentHashMap<>();
 
     public static long allocate(long size)
     {
