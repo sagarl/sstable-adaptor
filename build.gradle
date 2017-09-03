@@ -1,12 +1,17 @@
 buildscript {
     repositories {
         jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
     }
-}
+    dependencies {
+        //classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:3.6.2'
+        //classpath "com.netflix.nebula:nebula-release-plugin:4.2.0"
 
-plugins {
-    id 'nebula.netflixoss' version '3.6.4'
-    id 'com.github.johnrengelman.shadow' version '2.0.0'
+        classpath "com.github.jengelman.gradle.plugins:shadow:1.2.4"
+        classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3"
+    }
 }
 
 def artifact = new Properties()
@@ -14,29 +19,31 @@ artifact.load(new FileInputStream("deploy.properties"))
 if (project.hasProperty('version'))
    artifact.version = project.property('version')
 
-ext.githubProjectName = 'sstable-adaptor'
+//ext.githubProjectName = 'sstable-adaptor'
 
 allprojects {
+    //apply plugin: 'nebula.netflixoss'
     apply plugin: "com.jfrog.bintray"
+    apply plugin: 'java'
     apply plugin: 'idea'
     apply plugin: 'maven'
     apply plugin: 'maven-publish'
     
     version = artifact.version
     group = artifact.groupId
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
 }
 
 subprojects {
-    //apply plugin: 'nebula.netflixoss'
-    apply plugin: 'java'
-    apply plugin: 'com.github.johnrengelman.shadow'
- 
-    sourceCompatibility = 1.8
-    targetCompatibility = 1.8
 
     repositories {
         jcenter()
     }
+
+    //apply plugin: 'nebula.dependency-lock'
+    apply plugin: 'com.github.johnrengelman.shadow'
 
     configurations.all {
             resolutionStrategy.force "org.slf4j:slf4j-api:${slf4jVersion}"
@@ -99,7 +106,9 @@ subprojects {
 
 
 project(':sstable-adaptor-cassandra') {
+
     dependencies {
+        //compileOnly 'com.google.code.findbugs:annotations'
         compile "org.antlr:antlr:3.5.2"
         compile "org.xerial.snappy:snappy-java:1.1.1.7"
         compile "net.jpountz.lz4:lz4:1.3.0"

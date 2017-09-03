@@ -243,21 +243,6 @@ public abstract class SSTableWriter extends SSTable implements Transactional
         return (StatsMetadata) finalizeMetadata().get(MetadataType.STATS);
     }
 
-    public static void rename(Descriptor tmpdesc, Descriptor newdesc, Set<Component> components)
-    {
-        for (Component component : Sets.difference(components, Sets.newHashSet(Component.DATA, Component.SUMMARY)))
-        {
-            FileUtils.renameWithConfirm(tmpdesc.filenameFor(component), newdesc.filenameFor(component));
-        }
-
-        // do -Data last because -Data present should mean the sstable was completely renamed before crash
-        FileUtils.renameWithConfirm(tmpdesc.filenameFor(Component.DATA), newdesc.filenameFor(Component.DATA));
-
-        // rename it without confirmation because summary can be available for loadNewSSTables but not for closeAndOpenReader
-        FileUtils.renameWithOutConfirm(tmpdesc.filenameFor(Component.SUMMARY), newdesc.filenameFor(Component.SUMMARY));
-    }
-
-
     public static abstract class Factory
     {
         public abstract SSTableWriter open(Descriptor descriptor,
