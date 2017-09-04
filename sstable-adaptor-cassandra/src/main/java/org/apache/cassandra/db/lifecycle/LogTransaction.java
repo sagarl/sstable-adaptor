@@ -193,7 +193,7 @@ class LogTransaction extends Transactional.AbstractTransactional implements Tran
 
             if (!data.completed())
             { // this happens if we forget to close a txn and the garbage collector closes it for us
-                logger.error("Transaction log {} indicates txn was not completed, trying to abort it now", data);
+                logger.warn("Transaction log {} indicates txn was not completed, trying to abort it now", data);
                 Throwable err = Throwables.perform((Throwable)null, data::abort);
                 if (err != null)
                     logger.error("Failed to abort transaction log {}", data, err);

@@ -87,41 +87,53 @@ public class CompressionMetadata
         this.indexFilePath = indexFilePath;
         this.checksumType = checksumType;
 
-        try (ChannelProxy proxy = ChannelProxy.newInstance(indexFilePath);
-             DataInputStream stream = new DataInputStream(proxy.getInputStream()))
-        {
-            String compressorName = stream.readUTF();
-            int optionCount = stream.readInt();
-            Map<String, String> options = new HashMap<>(optionCount);
-            for (int i = 0; i < optionCount; ++i)
-            {
-                String key = stream.readUTF();
-                String value = stream.readUTF();
-                options.put(key, value);
-            }
-            int chunkLength = stream.readInt();
-            try
-            {
-                parameters = new CompressionParams(compressorName, chunkLength, options);
-            }
-            catch (ConfigurationException e)
-            {
-                throw new RuntimeException("Cannot create CompressionParams for stored parameters", e);
-            }
+        CompressionParams localParameters = null;
+        long localDataLength = 0;
+        long localCompressedFileLength = 0;
+        Memory localChunkOffsets = null;
 
-            dataLength = stream.readLong();
-            compressedFileLength = compressedLength;
-            chunkOffsets = readChunkOffsets(stream);
-        }
-        catch (FileNotFoundException e)
-        {
-            throw new RuntimeException(e);
-        }
-        catch (IOException e)
-        {
-            throw new CorruptSSTableException(e, indexFilePath);
+        int attempt = 0;
+        int maxAttempt = 5;
+        boolean isSuccess = false;
+
+        while (!isSuccess) {
+            try (ChannelProxy proxy = ChannelProxy.newInstance(indexFilePath);
+                 DataInputStream stream = new DataInputStream(proxy.getInputStream())) {
+                if (attempt > 0)
+                   Thread.sleep((int) Math.round(Math.pow(2, attempt)) * 1000);
+
+                String compressorName = stream.readUTF();
+                int optionCount = stream.readInt();
+                Map<String, String> options = new HashMap<>(optionCount);
+                for (int i = 0; i < optionCount; ++i) {
+                    String key = stream.readUTF();
+                    String value = stream.readUTF();
+                    options.put(key, value);
+                }
+                int chunkLength = stream.readInt();
+                try {
+                    localParameters = new CompressionParams(compressorName, chunkLength, options);
+                } catch (ConfigurationException e) {
+                    throw new RuntimeException("Cannot create CompressionParams for stored parameters", e);
+                }
+
+                localDataLength = stream.readLong();
+                localCompressedFileLength = compressedLength;
+                localChunkOffsets = readChunkOffsets(stream);
+                isSuccess = true;
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            } catch (Throwable e) {
+                attempt++;
+                if (attempt == maxAttempt)
+                  throw new CorruptSSTableException(e, indexFilePath);
+            }
         }
 
+        parameters = localParameters;
+        dataLength = localDataLength;
+        compressedFileLength = localCompressedFileLength;
+        chunkOffsets = localChunkOffsets;
         this.chunkOffsetsSize = chunkOffsets.size();
     }
 

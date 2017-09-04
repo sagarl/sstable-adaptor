@@ -17,32 +17,39 @@
  */
 package org.apache.cassandra.io.sstable;
 
-import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArraySet;
-
 import com.google.common.base.Charsets;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Sets;
-import com.google.common.io.Files;
-import org.apache.cassandra.io.util.*;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.FileSystem;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.BufferDecoratedKey;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.RowIndexEntry;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.io.FSWriteError;
+import org.apache.cassandra.io.util.DiskOptimizationStrategy;
+import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.io.util.HadoopFileUtils;
+import org.apache.cassandra.io.util.RandomAccessReader;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.memory.HeapAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOError;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * This class is built on top of the SequenceFile. It stores
@@ -292,7 +299,7 @@ public abstract class SSTable
      */
     protected static void appendTOC(Descriptor descriptor, Collection<Component> components)
     {
-        File tocFile = new File(descriptor.filenameFor(Component.TOC));
+        String tocFile = descriptor.filenameFor(Component.TOC);
 
         try (BufferedWriter bufferedWriter = HadoopFileUtils.newBufferedWriter(descriptor.filenameFor(Component.TOC),
                                                                                Charsets.UTF_8))
