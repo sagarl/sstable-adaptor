@@ -31,7 +31,7 @@ public class HadoopFileUtils {
     public static Configuration CONF;
     public static int DEFAULT_BUFFER_SIZE = 65536;
 
-    private static final Logger logger = LoggerFactory.getLogger(HadoopFileUtils.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(HadoopFileUtils.class);
 
     static {
         CONF = new Configuration(); //load stuffs from properties files?
@@ -45,8 +45,38 @@ public class HadoopFileUtils {
             FileSystem fs = path.getFileSystem(CONF);
             return fs.exists(path);
         } catch (IOException e) {
-            e.printStackTrace(); //TODO: using logging
-            return false;
+            LOGGER.error(e.getMessage());
+            throw new RuntimeException(e.getCause());
+        }
+    }
+
+    public static boolean delete(String filePath) {
+        filePath = normalizeFileName(filePath);
+        try {
+            Path path = new Path(filePath);
+            FileSystem fs = path.getFileSystem(CONF);
+            fs.delete(path, false);
+            return true;
+        } catch (IOException e) {
+            LOGGER.error("Unable to delete file " + filePath + ": " + e.getMessage());
+            throw new RuntimeException(e.getCause());
+        }
+    }
+
+    public static boolean deleteIfExists(String filePath) {
+        filePath = normalizeFileName(filePath);
+
+        try {
+            Path path = new Path(filePath);
+            FileSystem fs = path.getFileSystem(CONF);
+            if (fs.exists(path)) {
+                fs.delete(path, false);
+            }
+            return true;
+        } catch (IOException e) {
+            LOGGER.error("Unable to check the existence and to delete for file " + filePath + ": " + e.getMessage());
+            LOGGER.error(e.getMessage());
+            throw new RuntimeException(e.getCause());
         }
     }
 
@@ -101,7 +131,7 @@ public class HadoopFileUtils {
             FileSystem fs = path.getFileSystem(CONF);
             return fs.open(path, bufferSize);
         } catch (IOException e) {
-            e.printStackTrace(); //TODO: using logging
+            LOGGER.error(e.getMessage());
             throw new RuntimeException(e.getCause());
         }
     }
@@ -124,6 +154,7 @@ public class HadoopFileUtils {
             fs = path.getFileSystem(conf);
             outputStream = fs.create(path, true, 1024);
         } catch (IOException e) {
+            LOGGER.error(e.getMessage());
             throw new RuntimeException(e.getCause());
         }
 
@@ -230,7 +261,7 @@ public class HadoopFileUtils {
 
             return responseData;
         } catch (IOException e) {
-            logger.error(e.getMessage());
+            LOGGER.error(e.getMessage());
             throw e;
         } finally {
             closeWithExceptionThrow(in);
@@ -246,7 +277,7 @@ public class HadoopFileUtils {
             FileStatus fileStatus = fs.getFileStatus(path);
             return fileStatus.getLen();
         } catch (IOException e) {
-            logger.error(e.getMessage());
+            LOGGER.error(e.getMessage());
             throw e;
         }
     }

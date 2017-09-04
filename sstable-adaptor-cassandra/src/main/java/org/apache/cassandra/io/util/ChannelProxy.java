@@ -18,7 +18,6 @@
 package org.apache.cassandra.io.util;
 
 import org.apache.cassandra.io.FSReadError;
-import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.utils.concurrent.RefCounted;
 import org.apache.cassandra.utils.concurrent.SharedCloseableImpl;
 import org.apache.hadoop.conf.Configuration;
@@ -32,8 +31,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 
 /**

@@ -227,7 +227,7 @@ public final class Ref<T> implements RefCounted<T>
                 if (!leak)
                 {
                     String id = this.toString();
-                    logger.info("BAD RELEASE: attempted to release a reference ({}) that has already been released", id);
+                    logger.warn("BAD RELEASE: attempted to release a reference ({}) that has already been released", id);
                     if (DEBUG_ENABLED)
                         debug.log(id);
                     //throw new IllegalStateException("Attempted to release a reference that has already been released");
@@ -238,7 +238,7 @@ public final class Ref<T> implements RefCounted<T>
             if (leak)
             {
                 String id = this.toString();
-                logger.error("LEAK DETECTED: a reference ({}) to {} was not released before the reference was garbage collected", id, globalState);
+                logger.warn("LEAK DETECTED: a reference ({}) to {} was not released before the reference was garbage collected", id, globalState);
                 if (DEBUG_ENABLED)
                     debug.log(id);
             }

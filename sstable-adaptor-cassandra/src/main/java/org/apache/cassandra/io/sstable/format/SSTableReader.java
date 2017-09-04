@@ -710,11 +710,11 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
      */
     public static void saveSummary(Descriptor descriptor, DecoratedKey first, DecoratedKey last, IndexSummary summary)
     {
-        File summariesFile = new File(descriptor.filenameFor(Component.SUMMARY));
-        if (summariesFile.exists())
-            FileUtils.deleteWithConfirm(summariesFile);
+        String filePath = descriptor.filenameFor(Component.SUMMARY);
+        HadoopFileUtils.deleteIfExists(filePath);
 
-        try (DataOutputStreamPlus oStream = new BufferedDataOutputStreamPlus(new FileOutputStream(summariesFile));)
+        try (HadoopFileUtils.HadoopFileChannel hos = HadoopFileUtils.newFilesystemChannel(filePath);
+                DataOutputStreamPlus oStream =new BufferedDataOutputStreamPlus(hos))
         {
             IndexSummary.serializer.serialize(summary, oStream, descriptor.version.hasSamplingLevel());
             if (first != null && last != null) {
@@ -727,8 +727,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
             logger.trace("Cannot save SSTable Summary: ", e);
 
             // corrupted hence delete it and let it load it now.
-            if (summariesFile.exists())
-                FileUtils.deleteWithConfirm(summariesFile);
+            HadoopFileUtils.deleteIfExists(filePath);
         }
     }
 
