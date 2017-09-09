@@ -55,6 +55,7 @@ public class ChannelProxy extends SharedCloseableImpl
     private long fileLength = -1;
     private boolean isExists = false;
     private int bufferSize = 0;
+    private Cleanup cleanup = null;
 
     public ChannelProxy(Cleanup cleanup, FileSystem fs, FSDataInputStream inputStream, Path path, int bufferSize)
     {
@@ -64,6 +65,7 @@ public class ChannelProxy extends SharedCloseableImpl
         this.bufferSize = bufferSize;
         this.fs = fs;
         this.fileLength = size();
+        this.cleanup = cleanup;
     }
 
     public static ChannelProxy newInstance(String filePath) {
@@ -83,6 +85,19 @@ public class ChannelProxy extends SharedCloseableImpl
         } catch (IOException e) {
             logger.error(e.getMessage());
             return null;
+        }
+    }
+
+    public void reopenInputStream() {
+        //TODO: add a retry here too
+        try {
+            this.inputStream.close();
+            this.inputStream = HadoopFileUtils.buildInputStream(this.fs, this.filePath, this.bufferSize);
+            this.cleanup.swapInputStream(inputStream);
+        }
+        catch (IOException e) {
+            logger.error(e.getMessage());
+            //throw new RuntimeException(e);
         }
     }
 
@@ -193,7 +208,7 @@ public class ChannelProxy extends SharedCloseableImpl
     private final static class Cleanup implements RefCounted.Tidy
     {
         final String filePath;
-        final InputStream inputStream;
+        InputStream inputStream;
 
         Cleanup(String filePath, InputStream inputStream) {
             this.filePath = filePath;
@@ -209,7 +224,6 @@ public class ChannelProxy extends SharedCloseableImpl
         {
             try
             {
-
                 logger.info("Cleaning ChannelProxy for file: " + filePath);
                 this.inputStream.close();
             }
@@ -224,6 +238,12 @@ public class ChannelProxy extends SharedCloseableImpl
                 logger.error(sb.toString());
                 logger.error("Exception on file: " + filePath + " with exception: " + e.getMessage());
             }
+        }
+
+        //Precondition: the previous inputStream is already close by caller.
+        public void swapInputStream(InputStream newInputStream)
+        {
+            this.inputStream = newInputStream;
         }
     }
 

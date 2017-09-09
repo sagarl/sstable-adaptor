@@ -652,7 +652,6 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
     {
         //TODO: Minh fix this!
         String indexSummaryFilename = descriptor.filenameFor(Component.SUMMARY);
-        //File summariesFile = null;
 
         ChannelProxy proxy = ChannelProxy.newInstance(indexSummaryFilename);
         DataInputStream iStream = null;
@@ -710,24 +709,38 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
      */
     public static void saveSummary(Descriptor descriptor, DecoratedKey first, DecoratedKey last, IndexSummary summary)
     {
+
         String filePath = descriptor.filenameFor(Component.SUMMARY);
+
+        //TODO: add a retry here on deletion
         HadoopFileUtils.deleteIfExists(filePath);
 
-        try (HadoopFileUtils.HadoopFileChannel hos = HadoopFileUtils.newFilesystemChannel(filePath);
-                DataOutputStreamPlus oStream =new BufferedDataOutputStreamPlus(hos))
-        {
-            IndexSummary.serializer.serialize(summary, oStream, descriptor.version.hasSamplingLevel());
-            if (first != null && last != null) {
-                ByteBufferUtil.writeWithLength(first.getKey(), oStream);
-                ByteBufferUtil.writeWithLength(last.getKey(), oStream);
-            }
-        }
-        catch (IOException e)
-        {
-            logger.trace("Cannot save SSTable Summary: ", e);
 
-            // corrupted hence delete it and let it load it now.
-            HadoopFileUtils.deleteIfExists(filePath);
+        //TODO: will make the retry nicer
+        int attempt = 0;
+        int maxAttempt = 5;
+        boolean isSuccess = false;
+        while (!isSuccess) {
+            if (attempt > 0)
+                FBUtilities.sleepQuietly((int) Math.round(Math.pow(2, attempt)) * 1000);
+
+            try (HadoopFileUtils.HadoopFileChannel hos = HadoopFileUtils.newFilesystemChannel(filePath);
+                 DataOutputStreamPlus oStream = new BufferedDataOutputStreamPlus(hos)) {
+                IndexSummary.serializer.serialize(summary, oStream, descriptor.version.hasSamplingLevel());
+                if (first != null && last != null) {
+                    ByteBufferUtil.writeWithLength(first.getKey(), oStream);
+                    ByteBufferUtil.writeWithLength(last.getKey(), oStream);
+                }
+                isSuccess = true;
+            } catch (Throwable e) {
+                logger.trace("Cannot save SSTable Summary: ", e);
+
+                // corrupted hence delete it and let it load it now.
+                HadoopFileUtils.deleteIfExists(filePath);
+                attempt++;
+                if (attempt == maxAttempt) //TODO: do we need to record all retried excpetions here or assume they'r same
+                    throw new RuntimeException("Have retried for " + maxAttempt + " times but still failed!", e);
+            }
         }
     }
 

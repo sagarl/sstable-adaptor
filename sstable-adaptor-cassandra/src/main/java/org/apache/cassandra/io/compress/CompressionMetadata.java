@@ -31,6 +31,7 @@ import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.util.*;
 import org.apache.cassandra.schema.CompressionParams;
 import org.apache.cassandra.utils.ChecksumType;
+import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Pair;
 import org.apache.cassandra.utils.concurrent.Ref;
 import org.apache.cassandra.utils.concurrent.Transactional;
@@ -92,6 +93,7 @@ public class CompressionMetadata
         long localCompressedFileLength = 0;
         Memory localChunkOffsets = null;
 
+        //TODO: will make the retry look nicer with an abstraction class
         int attempt = 0;
         int maxAttempt = 5;
         boolean isSuccess = false;
@@ -100,7 +102,7 @@ public class CompressionMetadata
             try (ChannelProxy proxy = ChannelProxy.newInstance(indexFilePath);
                  DataInputStream stream = new DataInputStream(proxy.getInputStream())) {
                 if (attempt > 0)
-                   Thread.sleep((int) Math.round(Math.pow(2, attempt)) * 1000);
+                    FBUtilities.sleepQuietly((int) Math.round(Math.pow(2, attempt)) * 1000);
 
                 String compressorName = stream.readUTF();
                 int optionCount = stream.readInt();

@@ -19,10 +19,12 @@
 package org.apache.cassandra.io.util;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.io.compress.BufferType;
 import org.apache.cassandra.io.compress.CompressionMetadata;
 import org.apache.cassandra.io.compress.CorruptBlockException;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
+import org.apache.cassandra.utils.FBUtilities;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -118,9 +120,32 @@ public abstract class CompressedChunkReader extends AbstractReaderFileProxy impl
                 }
 
                 compressed.limit(chunk.length);
-                channel.read(compressed, chunk.offset);
-                //if (channel.read(compressed, chunk.offset) != chunk.length)
-                //    throw new CorruptBlockException(channel.filePath(), chunk);
+                //TODO: will make the retry look nicer with an abstraction class
+                int attempt = 0;
+                int maxAttempt = 5;
+                boolean isSuccess = false;
+                while (!isSuccess)
+                {
+                    if (attempt > 0)
+                        FBUtilities.sleepQuietly((int) Math.round(Math.pow(2, attempt)) * 1000);
+
+                    try {
+                       int numByteRead = channel.read(compressed, chunk.offset);
+                       if (numByteRead != chunk.length)
+                           throw new CorruptBlockException(channel.filePath(), chunk);
+                        isSuccess = true;
+                    }
+                    catch (IOException e)
+                    {
+                        attempt++;
+                        channel.reopenInputStream();
+                        if (attempt == maxAttempt) {
+                            //TODO: what if this is still a network issue, not data corruption
+                            throw new CorruptSSTableException(e, "Error on reading " + channel.filePath() +
+                              " on num. attempt " + maxAttempt + " at position " + chunk.offset);
+                        }
+                    }
+                }
 
                 compressed.flip();
                 uncompressed.clear();
@@ -138,16 +163,19 @@ public abstract class CompressedChunkReader extends AbstractReaderFileProxy impl
                     uncompressed.flip();
                 }
 
+                /** //TODO: Add this back later
                 if (getCrcCheckChance() > ThreadLocalRandom.current().nextDouble())
                 {
                     compressed.rewind();
                     int checksum = (int) metadata.checksumType.of(compressed);
 
                     compressed.clear().limit(Integer.BYTES);
+                    //TODO: need to retry here? Or skip this checksum entirely
                     if (channel.read(compressed, chunk.offset + chunk.length) != Integer.BYTES
                                 || compressed.getInt(0) != checksum)
                         throw new CorruptBlockException(channel.filePath(), chunk);
                 }
+                */
             }
             catch (CorruptBlockException e)
             {
