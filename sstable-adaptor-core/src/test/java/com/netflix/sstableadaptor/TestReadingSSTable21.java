@@ -1,11 +1,13 @@
 package com.netflix.sstableadaptor;
 
+import com.netflix.sstableadaptor.sstable.SSTableIterator;
 import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.cql3.QueryProcessor;
 import org.apache.cassandra.cql3.statements.CFProperties;
 import org.apache.cassandra.cql3.statements.CreateTableStatement;
 import org.apache.cassandra.cql3.statements.ParsedStatement;
+import org.apache.cassandra.db.rows.RowIterator;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
@@ -18,6 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * These tests are for reading SSTable in Cassandra 2.1.
@@ -168,9 +172,14 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
         final ISSTableScanner currentScanner =
                 sstableSingleReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
 
-        while (currentScanner.hasNext()) {
-            final UnfilteredRowIterator unfilteredRowIterator = currentScanner.next();
-            counter += printRowDetails(cfMetaData, unfilteredRowIterator, isThriftTable);
+        final int nowInSecs = (int) (System.currentTimeMillis() / 1000);
+        final List<ISSTableScanner> scanners = new ArrayList<>();
+        scanners.add(currentScanner);
+        try (SSTableIterator ci = new SSTableIterator(scanners, cfMetaData, nowInSecs)) {
+            while (ci.hasNext()) {
+                final RowIterator rowIterator = ci.next();
+                counter += printRowDetails(cfMetaData, rowIterator, isThriftTable);
+            }
         }
 
         return counter;

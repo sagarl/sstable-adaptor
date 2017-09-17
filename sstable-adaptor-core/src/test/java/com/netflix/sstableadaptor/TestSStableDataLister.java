@@ -20,6 +20,7 @@ package com.netflix.sstableadaptor;
 import com.netflix.sstableadaptor.sstable.SSTableIterator;
 import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.db.rows.RowIterator;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.junit.AfterClass;
@@ -147,12 +148,14 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
             final ISSTableScanner currentScanner =
                     sstableSingleReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
 
-            while (currentScanner.hasNext()) {
-                while (currentScanner.hasNext()) {
-                    final UnfilteredRowIterator unfilteredRowIterator = currentScanner.next();
-                    counter += printRowDetails(sstableSingleReader.getCfMetaData(),
-                                               unfilteredRowIterator,
-                                              false);
+            final CFMetaData cfMetaData = sstableSingleReader.getCfMetaData();
+            final int nowInSecs = (int) (System.currentTimeMillis() / 1000);
+            final List<ISSTableScanner> scanners = new ArrayList<>();
+            scanners.add(currentScanner);
+            try (SSTableIterator ci = new SSTableIterator(scanners, cfMetaData, nowInSecs)) {
+                while (ci.hasNext()) {
+                    final RowIterator rowIterator = ci.next();
+                    counter += printRowDetails(cfMetaData, rowIterator, false);
                 }
             }
         } catch (IOException e) {
@@ -182,8 +185,8 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
         int counter = 0;
         try (SSTableIterator ci = new SSTableIterator(scanners, reader1.getCfMetaData(), nowInSecs)) {
             while (ci.hasNext()) {
-                final UnfilteredRowIterator unfilteredRowIterator = ci.next();
-                counter += printRowDetails(cfMetaData, unfilteredRowIterator, false);
+                final RowIterator rowIterator = ci.next();
+                counter += printRowDetails(cfMetaData, rowIterator, false);
             }
         }
 
@@ -222,8 +225,8 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
         int counter = 0;
         try (SSTableIterator ci = new SSTableIterator(scanners, cass21Reader0.getCfMetaData(), nowInSecs)) {
             while (ci.hasNext()) {
-                final UnfilteredRowIterator unfilteredRowIterator = ci.next();
-                counter += printRowDetails(cfMetaData, unfilteredRowIterator, false);
+                final RowIterator rowIterator = ci.next();
+                counter += printRowDetails(cfMetaData, rowIterator, false);
             }
         }
 

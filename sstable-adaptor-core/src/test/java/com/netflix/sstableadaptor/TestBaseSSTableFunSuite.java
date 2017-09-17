@@ -18,10 +18,9 @@ package com.netflix.sstableadaptor;
 
 import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
-import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.rows.Cell;
 import org.apache.cassandra.db.rows.Row;
-import org.apache.cassandra.db.rows.UnfilteredRowIterator;
+import org.apache.cassandra.db.rows.RowIterator;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.junit.Assert;
 import org.slf4j.Logger;
@@ -40,6 +39,9 @@ public class TestBaseSSTableFunSuite {
     /** Base directory location. */
     public static final String CASS3_DATA_DIR = "src/test/resources/data/cass3/keyspace1/";
     public static final String CASS21_DATA_DIR = "src/test/resources/data/cass2.1/keyspace1/";
+
+    //public static final String CASS21_DATA_DIR = System.getProperty("user.dir") + "/sstable-adaptor-core/" +
+    //                                             "src/test/resources/data/cass2.1/keyspace1/";
 
     /** S3 location to contain the input sstable files */
     public static final String S3_INPUT_DIR = System.getenv("S3_INPUT_DIR");
@@ -88,13 +90,13 @@ public class TestBaseSSTableFunSuite {
      *  Print out a row with details.
      */
     protected int printRowDetails(final CFMetaData cfMetaData,
-                                  final UnfilteredRowIterator unfilteredRowIterator,
+                                  final RowIterator rowIterator,
                                   final boolean isThriftTable) {
         int counter = 0;
-        final ByteBuffer partitionKey = unfilteredRowIterator.partitionKey().getKey();
+        final ByteBuffer partitionKey = rowIterator.partitionKey().getKey();
 
         LOGGER.info("===================New Row==================================");
-        LOGGER.info("Partition key: " + new String(unfilteredRowIterator.partitionKey().getKey().array()));
+        LOGGER.info("Partition key: " + new String(rowIterator.partitionKey().getKey().array()));
 
         final List<Object> list = SSTableUtils.parsePrimaryKey(cfMetaData, partitionKey);
         Assert.assertEquals(cfMetaData.partitionKeyColumns().size(), list.size());
@@ -102,7 +104,7 @@ public class TestBaseSSTableFunSuite {
             LOGGER.info("\tPartition key val ::::: " + val);
         }
 
-        final Row staticRow = unfilteredRowIterator.staticRow();
+        final Row staticRow = rowIterator.staticRow();
         LOGGER.info("static info: " + staticRow.isStatic());
 
         LOGGER.info("\tStatic: " + staticRow);
@@ -113,8 +115,8 @@ public class TestBaseSSTableFunSuite {
         if (isThriftTable)
             counter++;
 
-        while (unfilteredRowIterator.hasNext()) {
-            final Row row = (Row) unfilteredRowIterator.next();
+        while (rowIterator.hasNext()) {
+            final Row row = (Row) rowIterator.next();
             LOGGER.info("\t------------------New sub-row ------------------------------");
             LOGGER.info("Clustering size: " + row.clustering().size());
             for(int k=0; k<row.clustering().size(); k++)

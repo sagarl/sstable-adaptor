@@ -22,11 +22,13 @@ import org.apache.cassandra.db.Columns;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.DeletionTime;
 import org.apache.cassandra.db.EmptyIterators;
+import org.apache.cassandra.db.partitions.PartitionIterator;
 import org.apache.cassandra.db.partitions.PurgeFunction;
 import org.apache.cassandra.db.partitions.UnfilteredPartitionIterator;
 import org.apache.cassandra.db.partitions.UnfilteredPartitionIterators;
 import org.apache.cassandra.db.rows.RangeTombstoneMarker;
 import org.apache.cassandra.db.rows.Row;
+import org.apache.cassandra.db.rows.RowIterator;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.db.rows.UnfilteredRowIterators;
 import org.apache.cassandra.db.transform.Transformation;
@@ -47,7 +49,7 @@ import java.util.List;
  * </ul>
  *
  */
-public class SSTableIterator implements UnfilteredPartitionIterator {
+public class SSTableIterator implements PartitionIterator {
     private static final Logger LOGGER = LoggerFactory.getLogger(SSTableIterator.class);
     private static final long UNFILTERED_TO_UPDATE_PROGRESS = 100;
 
@@ -65,7 +67,7 @@ public class SSTableIterator implements UnfilteredPartitionIterator {
      * index 1 is counter for 2 rows merged, and so on.
      */
     private final long[] mergeCounters;
-    private final UnfilteredPartitionIterator compacted;
+    private final PartitionIterator compacted;
 
     /**
      * We make sure to close mergedIterator in close() and CompactionIterator is itself an AutoCloseable.
@@ -90,12 +92,11 @@ public class SSTableIterator implements UnfilteredPartitionIterator {
         this.mergeCounters = new long[scanners.size()];
 
         final UnfilteredPartitionIterator merged = scanners.isEmpty()
-            ? EmptyIterators.unfilteredPartition(cfMetaData, false)
-            : UnfilteredPartitionIterators.merge(scanners, nowInSec, listener());
+                ? EmptyIterators.unfilteredPartition(cfMetaData, false)
+                : UnfilteredPartitionIterators.merge(scanners, nowInSec, listener());
 
-        // to stop capture of iterator in Purger, which is confusing for debug
-        //boolean isForThrift = merged.isForThrift();
-        this.compacted = Transformation.apply(merged, new Purger(nowInSec));
+        UnfilteredPartitionIterator mergeAndPurge = Transformation.apply(merged, new Purger(nowInSec));
+        compacted = UnfilteredPartitionIterators.filter(mergeAndPurge, nowInSec);
     }
 
     /**
@@ -174,7 +175,7 @@ public class SSTableIterator implements UnfilteredPartitionIterator {
                 }
 
                 //final PartitionColumns partitionColumns = new PartitionColumns(statics, regulars);
-
+                //TODO: need to leverage these to track the operation counts
                 return new UnfilteredRowIterators.MergeListener() {
                     public void onMergedPartitionLevelDeletion(final DeletionTime mergedDeletion,
                                                                final DeletionTime[] versions) {
@@ -218,9 +219,9 @@ public class SSTableIterator implements UnfilteredPartitionIterator {
     /**
      * Return next item.
      *
-     * @return UnfilteredRowIterator
+     * @return RowIterator
      */
-    public UnfilteredRowIterator next() {
+    public RowIterator next() {
         return compacted.next();
     }
 

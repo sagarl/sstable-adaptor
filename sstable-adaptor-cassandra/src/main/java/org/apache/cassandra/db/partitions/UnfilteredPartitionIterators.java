@@ -70,9 +70,11 @@ public abstract class UnfilteredPartitionIterators
     }
 
 
-    public static PartitionIterator mergeAndFilter(List<UnfilteredPartitionIterator> iterators, int nowInSec, MergeListener listener)
+    public static PartitionIterator mergeAndFilter(List<? extends UnfilteredPartitionIterator> iterators,
+                                                   int nowInSec, MergeListener listener)
     {
-        // TODO: we could have a somewhat faster version if we were to merge the UnfilteredRowIterators directly as RowIterators
+        // TODO: we could have a somewhat faster version if we were to merge the
+        // UnfilteredRowIterators directly as RowIterators
         return filter(merge(iterators, nowInSec, listener), nowInSec);
     }
 
@@ -81,7 +83,8 @@ public abstract class UnfilteredPartitionIterators
         return FilteredPartitions.filter(iterator, nowInSec);
     }
 
-    public static UnfilteredPartitionIterator merge(final List<? extends UnfilteredPartitionIterator> iterators, final int nowInSec, final MergeListener listener)
+    public static UnfilteredPartitionIterator merge(final List<? extends UnfilteredPartitionIterator> iterators,
+                                                    final int nowInSec, final MergeListener listener)
     {
         assert listener != null;
         assert !iterators.isEmpty();
@@ -89,7 +92,9 @@ public abstract class UnfilteredPartitionIterators
         final boolean isForThrift = iterators.get(0).isForThrift();
         final CFMetaData metadata = iterators.get(0).metadata();
 
-        final MergeIterator<UnfilteredRowIterator, UnfilteredRowIterator> merged = MergeIterator.get(iterators, partitionComparator, new MergeIterator.Reducer<UnfilteredRowIterator, UnfilteredRowIterator>()
+        final MergeIterator<UnfilteredRowIterator, UnfilteredRowIterator> merged = MergeIterator.get(iterators,
+                partitionComparator,
+                new MergeIterator.Reducer<UnfilteredRowIterator, UnfilteredRowIterator>()
         {
             private final List<UnfilteredRowIterator> toMerge = new ArrayList<>(iterators.size());
 
