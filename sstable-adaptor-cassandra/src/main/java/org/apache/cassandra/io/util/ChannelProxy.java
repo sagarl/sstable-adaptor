@@ -166,14 +166,22 @@ public class ChannelProxy extends SharedCloseableImpl
 
     public int read(ByteBuffer buffer, long position)
     {
-        byte[] temBuff = buffer.array();
+        int size = 0;
+        byte[] temBuff = null;
 
         try {
-            int size = read(position, temBuff, 0, buffer.limit());
-            buffer.limit(buffer.capacity());
-            buffer.position(size);
+            if (buffer.isDirect()) {
+                //TODO: have a better way to allocate this using thread local or pooling
+                temBuff = new byte[buffer.capacity()];
+                size = read(position, temBuff, 0, buffer.limit());
+                buffer.put(temBuff, 0, size);
+            } else {
+                temBuff = buffer.array();
+                size = read(position, temBuff, 0, buffer.limit());
+                buffer.limit(buffer.capacity());
+                buffer.position(size);
+            }
             return size;
-
         } catch (IOException e) {
             throw new FSReadError(e, filePath.getName());
         }
