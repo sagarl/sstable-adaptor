@@ -397,6 +397,54 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
         Assert.assertEquals(cfMetaData.partitioner, Murmur3Partitioner.instance);
     }
 
+    @Test
+    public void testParsingCQLOnUnstructuredThriftCreateTable() throws IOException {
+        final String cql = "CREATE TABLE cptests.ab_enums (" +
+                "key text,  " +
+                "column1 text,   " +
+                "value blob, " +
+                "PRIMARY KEY (key, column1)) " +
+                "WITH COMPACT STORAGE AND CLUSTERING ORDER BY (column1 ASC) " +
+                "AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'}";
+
+        CFMetaData cfMetaData = CFMetaData.compile(cql, "cptests");
+
+        Assert.assertEquals(cfMetaData.ksName, "cptests");
+        Assert.assertEquals(cfMetaData.cfName, "ab_enums");
+
+        cfMetaData.primaryKeyColumns().forEach(col -> {
+            String colName = col.name.toString();
+            Assert.assertTrue(colName.equals("key") || colName.equals("column1"));
+        });
+
+        cfMetaData.partitionColumns().forEach(col -> {
+            Assert.assertEquals("value", col.name.toString());
+        });
+
+        cfMetaData.clusteringColumns().forEach(col -> {
+            String colName = col.name.toString();
+            Assert.assertTrue(colName.equals("column1"));
+        });
+
+        Assert.assertFalse(cfMetaData.clusteringColumns().isEmpty());
+        Assert.assertTrue(3 == cfMetaData.allColumns().size());
+        Assert.assertTrue(cfMetaData.isCompactTable());
+        Assert.assertFalse(cfMetaData.isCompound());
+        Assert.assertFalse(cfMetaData.hasStaticColumns());
+        Assert.assertFalse(cfMetaData.isCQLTable());
+        Assert.assertFalse(cfMetaData.isView());
+        Assert.assertTrue(cfMetaData.isCompactTable());
+        Assert.assertFalse(cfMetaData.isCounter());
+        Assert.assertTrue(cfMetaData.isDense());
+        Assert.assertFalse(cfMetaData.isIndex());
+        Assert.assertFalse(cfMetaData.isSuper());
+        Assert.assertTrue(cfMetaData.isThriftCompatible());
+        Assert.assertFalse(cfMetaData.hasCollectionColumns());
+        Assert.assertFalse(cfMetaData.hasComplexColumns());
+
+        Assert.assertEquals(cfMetaData.partitioner, Murmur3Partitioner.instance);
+    }
+
 }
 
 

@@ -85,7 +85,7 @@ import java.util.stream.Collectors;
  * This class can be tricky to modify. Please read http://wiki.apache.org/cassandra/ConfigurationNotes for how to do so safely.
  */
 @Unmetered
-public final class CFMetaData
+public class CFMetaData
 {
     public enum Flag
     {

@@ -169,8 +169,6 @@ public class SSTableSingleReader {
                                 final List<String> clusteringKeyNames) throws IOException {
         descriptor = Descriptor.fromFilename(HadoopFileUtils.normalizeFileName(fileLocation));
         cfMetaData = SSTableUtils.metadataFromSSTable(descriptor, keyspaceName, tableName, partitionKeyNames, clusteringKeyNames);
-        //cfMetaData = SSTableUtils.metadataFromSSTableHacked(descriptor, keyspaceName, tableName, partitionKeyNames, clusteringKeyNames);
-
         initHelper();
     }
 
