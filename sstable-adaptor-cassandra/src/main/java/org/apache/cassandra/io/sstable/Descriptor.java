@@ -17,19 +17,20 @@
  */
 package org.apache.cassandra.io.sstable;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Objects;
-import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
 import org.apache.cassandra.io.sstable.format.Version;
 import org.apache.cassandra.io.sstable.metadata.IMetadataSerializer;
 import org.apache.cassandra.io.sstable.metadata.MetadataSerializer;
 import org.apache.cassandra.utils.Pair;
 import org.apache.directory.api.util.Strings;
+import org.apache.hadoop.conf.Configuration;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
 import static org.apache.cassandra.io.sstable.Component.separator;
@@ -57,50 +58,50 @@ public class Descriptor
     /** digest component - might be {@code null} for old, legacy sstables */
     public final Component digestComponent;
     private final int hashCode;
+    private Configuration conf;
 
 
-    public Descriptor(String version, String directory, String ksname, String cfname, int generation, SSTableFormat.Type formatType)
+    public Descriptor(String version, String directory, String ksname, String cfname, int generation,
+                      SSTableFormat.Type formatType, Configuration configuration)
     {
-        this(formatType.info.getVersion(version), directory, ksname, cfname, generation, formatType, Component.digestFor(formatType.info.getLatestVersion().uncompressedChecksumType()));
+        this(formatType.info.getVersion(version), directory, ksname, cfname, generation, formatType,
+                Component.digestFor(formatType.info.getLatestVersion().uncompressedChecksumType()),
+                configuration);
     }
 
-    public Descriptor(Version version, String directory, String ksname, String cfname, int generation, SSTableFormat.Type formatType, Component digestComponent)
+    public Descriptor(Version version, String directory, String ksname, String cfname, int generation,
+                      SSTableFormat.Type formatType, Component digestComponent, Configuration configuration)
     {
-        assert version != null && directory != null && ksname != null && cfname != null && formatType.info.getLatestVersion().getClass().equals(version.getClass());
+        assert version != null && directory != null && ksname != null && cfname != null &&
+                formatType.info.getLatestVersion().getClass().equals(version.getClass());
+
         this.version = version;
-        /*
-        try
-        {
-            this.directory = directory.getCanonicalFile();
-        }
-        catch (IOException e)
-        {
-            throw new IOError(e);
-        }
-        */
         this.directory = directory;
         this.ksname = ksname;
         this.cfname = cfname;
         this.generation = generation;
         this.formatType = formatType;
         this.digestComponent = digestComponent;
+        this.conf = configuration;
 
         hashCode = Objects.hashCode(version, this.directory, generation, ksname, cfname, formatType);
     }
 
     public Descriptor withGeneration(int newGeneration)
     {
-        return new Descriptor(version, directory, ksname, cfname, newGeneration, formatType, digestComponent);
+        return new Descriptor(version, directory, ksname, cfname, newGeneration, formatType, digestComponent, conf);
     }
 
     public Descriptor withFormatType(SSTableFormat.Type newType)
     {
-        return new Descriptor(newType.info.getLatestVersion(), directory, ksname, cfname, generation, newType, digestComponent);
+        return new Descriptor(newType.info.getLatestVersion(), directory, ksname, cfname, generation, newType,
+                digestComponent, conf);
     }
 
     public Descriptor withDigestComponent(Component newDigestComponent)
     {
-        return new Descriptor(version, directory, ksname, cfname, generation, formatType, newDigestComponent);
+        return new Descriptor(version, directory, ksname, cfname, generation, formatType,
+                newDigestComponent, conf);
     }
 
     public String tmpFilenameFor(Component component)
@@ -147,6 +148,8 @@ public class Descriptor
         return formatType.info;
     }
 
+    public Configuration getConfiguration() { return this.conf; }
+
     /**
      *  Files obsoleted by CASSANDRA-7066 : temporary files and compactions_in_progress. We support
      *  versions 2.1 (ka) and 2.2 (la).
@@ -167,14 +170,14 @@ public class Descriptor
      * @param filename The SSTable filename
      * @return Descriptor of the SSTable initialized from filename
      */
-    public static Descriptor fromFilename(String filename)
+    public static Descriptor fromFilename(String filename, Configuration configuration)
     {
-        return fromFilename(filename, false);
+        return fromFilename(filename, false, configuration);
     }
 
-    public static Descriptor fromFilename(String filename, SSTableFormat.Type formatType)
+    public static Descriptor fromFilename(String filename, SSTableFormat.Type formatType, Configuration configuration)
     {
-        return fromFilename(filename).withFormatType(formatType);
+        return fromFilename(filename, configuration).withFormatType(formatType);
     }
 
     private static String getParentDir(String filePath) {
@@ -184,11 +187,9 @@ public class Descriptor
         return filePath.substring(0, filePath.lastIndexOf(File.separatorChar));
     }
 
-    public static Descriptor fromFilename(String filename, boolean skipComponent)
+    public static Descriptor fromFilename(String filename, boolean skipComponent, Configuration configuration)
     {
-        return fromFilename(getParentDir(filename), getName(filename), skipComponent).left;
-        //return fromFilename(new File(getParentDir(filename)), file.getName(), skipComponent).left;
-        //return fromFilename(file.getParentFile(), file.getName(), skipComponent).left;
+        return fromFilename(getParentDir(filename), getName(filename), skipComponent, configuration).left;
     }
 
     private static String getName(String path) {
@@ -204,7 +205,8 @@ public class Descriptor
      * Filename of the form is vary by version:
      *
      * <ul>
-     *     <li>&lt;ksname&gt;-&lt;cfname&gt;-(tmp-)?&lt;version&gt;-&lt;gen&gt;-&lt;component&gt; for cassandra 2.0 and before</li>
+     *     <li>&lt;ksname&gt;-&lt;cfname&gt;-(tmp-)?&lt;version&gt;-&lt;gen&gt;-&lt;component&gt; for cassandra 2.0
+     *     and before</li>
      *     <li>(&lt;tmp marker&gt;-)?&lt;version&gt;-&lt;gen&gt;-&lt;component&gt; for cassandra 3.0 and later</li>
      * </ul>
      *
@@ -216,7 +218,8 @@ public class Descriptor
      *
      * @return A Descriptor for the SSTable, and the Component remainder.
      */
-    public static Pair<Descriptor, String> fromFilename(String directory, String name, boolean skipComponent)
+    public static Pair<Descriptor, String> fromFilename(String directory, String name,
+                                                        boolean skipComponent, Configuration configuration)
     {
         //File parentDirectory = directory != null ? directory : new File(".");
         String parentDirectory = directory;
@@ -251,7 +254,8 @@ public class Descriptor
         nexttok = tokenStack.pop();
 
         if (!Version.validate(nexttok))
-            throw new UnsupportedOperationException("SSTable " + name + " is too old to open.  Upgrade to 2.0 first, and run upgradesstables");
+            throw new UnsupportedOperationException("SSTable " + name + " is too old to open.  Upgrade to 2.0 " +
+                    "first, and run upgradesstables");
 
         Version version = fmt.info.getVersion(nexttok);
 
@@ -269,7 +273,8 @@ public class Descriptor
 
         return Pair.create(new Descriptor(version, parentDirectory, ksname, cfname, generation, fmt,
                                           // _assume_ version from version
-                                          Component.digestFor(version.uncompressedChecksumType())),
+                                          Component.digestFor(version.uncompressedChecksumType()),
+                                          configuration),
                            component);
     }
 

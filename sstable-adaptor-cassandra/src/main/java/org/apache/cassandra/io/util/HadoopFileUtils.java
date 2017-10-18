@@ -28,21 +28,21 @@ import java.util.List;
 
 public class HadoopFileUtils {
 
-    public static Configuration CONF;
+    //public static Configuration CONF;
     public static int DEFAULT_BUFFER_SIZE = 65536;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HadoopFileUtils.class);
 
     static {
-        CONF = new Configuration(); //load stuffs from properties files?
+        //CONF = new Configuration(); //load stuffs from properties files?
     }
 
-    public static boolean exists(String filePath) {
+    public static boolean exists(String filePath, Configuration conf) {
         filePath = normalizeFileName(filePath);
 
         try {
             Path path = new Path(filePath);
-            FileSystem fs = path.getFileSystem(CONF);
+            FileSystem fs = path.getFileSystem(conf);
             return fs.exists(path);
         } catch (IOException e) {
             LOGGER.error(e.getMessage());
@@ -50,11 +50,11 @@ public class HadoopFileUtils {
         }
     }
 
-    public static boolean delete(String filePath) {
+    public static boolean delete(String filePath, Configuration conf) {
         filePath = normalizeFileName(filePath);
         try {
             Path path = new Path(filePath);
-            FileSystem fs = path.getFileSystem(CONF);
+            FileSystem fs = path.getFileSystem(conf);
             fs.delete(path, false);
             return true;
         } catch (IOException e) {
@@ -63,12 +63,12 @@ public class HadoopFileUtils {
         }
     }
 
-    public static boolean deleteIfExists(String filePath) {
+    public static boolean deleteIfExists(String filePath, Configuration conf) {
         filePath = normalizeFileName(filePath);
 
         try {
             Path path = new Path(filePath);
-            FileSystem fs = path.getFileSystem(CONF);
+            FileSystem fs = path.getFileSystem(conf);
             if (fs.exists(path)) {
                 fs.delete(path, false);
             }
@@ -93,17 +93,16 @@ public class HadoopFileUtils {
         return fileName;
     }
 
-    public static BufferedWriter newBufferedWriter(String filePath, Charset cs)
+    public static BufferedWriter newBufferedWriter(String filePath, Charset cs, Configuration conf)
         throws IOException
     {
         CharsetEncoder encoder = cs.newEncoder();
-        Writer writer = new OutputStreamWriter(getOutputStream(filePath), encoder);
+        Writer writer = new OutputStreamWriter(getOutputStream(filePath, conf), encoder);
         return new BufferedWriter(writer);
     }
 
-    public static FSDataOutputStream getOutputStream(String filePath) {
+    private static FSDataOutputStream getOutputStream(String filePath, Configuration conf) {
         Path path = new Path(filePath);
-        Configuration conf = CONF;
         FileSystem fs;
         FSDataOutputStream outputStream;
         try {
@@ -116,19 +115,19 @@ public class HadoopFileUtils {
         return outputStream;
     }
 
-    public final static FSDataInputStream buildInputStream(String filePath) throws IOException {
+    public final static FSDataInputStream buildInputStream(String filePath, Configuration conf) throws IOException {
         Path path = new Path(filePath);
-        return buildInputStream(path);
+        return buildInputStream(path, conf);
     }
 
-    public final static FSDataInputStream buildInputStream(Path path) throws IOException {
-        return buildInputStream(path, DEFAULT_BUFFER_SIZE);
+    public final static FSDataInputStream buildInputStream(Path path, Configuration conf) throws IOException {
+        return buildInputStream(path, DEFAULT_BUFFER_SIZE, conf);
     }
 
-    public final static FSDataInputStream buildInputStream(Path path, int bufferSize)
+    public final static FSDataInputStream buildInputStream(Path path, int bufferSize, Configuration conf)
         throws IOException {
         try {
-            FileSystem fs = path.getFileSystem(CONF);
+            FileSystem fs = path.getFileSystem(conf);
             return fs.open(path, bufferSize);
         } catch (IOException e) {
             LOGGER.error(e.getMessage());
@@ -145,9 +144,8 @@ public class HadoopFileUtils {
         public void flush() throws IOException;
     }
 
-    public static HadoopFileChannel newFilesystemChannel(String filePath) {
+    public static HadoopFileChannel newFilesystemChannel(String filePath, Configuration conf) {
         Path path = new Path(filePath);
-        Configuration conf = ChannelProxy.CONF;
         FileSystem fs;
         FSDataOutputStream outputStream;
         try {
@@ -244,13 +242,13 @@ public class HadoopFileUtils {
         return bytes;
     }
 
-    public static List<String> readLines(String filename) throws IOException {
+    public static List<String> readLines(String filename, Configuration conf) throws IOException {
         filename = HadoopFileUtils.normalizeFileName(filename);
         Path path = new Path(filename);
         BufferedReader in = null;
         try {
             List<String> responseData = new ArrayList<String>();
-            FileSystem fs = path.getFileSystem(CONF);
+            FileSystem fs = path.getFileSystem(conf);
 
             FSDataInputStream inputStream = fs.open(path);
             in = new BufferedReader(new InputStreamReader(inputStream));
@@ -268,12 +266,12 @@ public class HadoopFileUtils {
         }
     }
 
-    public static long fileSize(String filename) throws IOException {
+    public static long fileSize(String filename, Configuration conf) throws IOException {
         filename = HadoopFileUtils.normalizeFileName(filename);
         Path path = new Path(filename);
 
         try {
-            FileSystem fs = path.getFileSystem(CONF);
+            FileSystem fs = path.getFileSystem(conf);
             FileStatus fileStatus = fs.getFileStatus(path);
             return fileStatus.getLen();
         } catch (IOException e) {

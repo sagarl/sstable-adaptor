@@ -31,7 +31,13 @@ import org.apache.cassandra.db.SerializationHeader;
 import org.apache.cassandra.db.marshal.Int32Type;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.db.partitions.PartitionUpdate;
-import org.apache.cassandra.db.rows.*;
+import org.apache.cassandra.db.rows.BTreeRow;
+import org.apache.cassandra.db.rows.BufferCell;
+import org.apache.cassandra.db.rows.Cell;
+import org.apache.cassandra.db.rows.EncodingStats;
+import org.apache.cassandra.db.rows.Row;
+import org.apache.cassandra.db.rows.Unfiltered;
+import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
@@ -120,13 +126,15 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
         final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
         LOGGER.info("Input file name: " + inputSSTableFullPathFileName);
 
-        final Descriptor inputSSTableDescriptor = Descriptor.fromFilename(inputSSTableFullPathFileName);
+        final Descriptor inputSSTableDescriptor = Descriptor.fromFilename(inputSSTableFullPathFileName,
+                                                                TestBaseSSTableFunSuite.HADOOP_CONF);
         SSTableWriter writer = null;
 
         try {
             SSTableSingleReader reader = new SSTableSingleReader(inputSSTableFullPathFileName,
                                                                  "casspactor",
-                                                                 "bills_nc");
+                                                                 "bills_nc",
+                                                                 TestBaseSSTableFunSuite.HADOOP_CONF);
             final CFMetaData inputCFMetaData = reader.getCfMetaData();
             final ISSTableScanner currentScanner = reader.getSSTableScanner();
             final SSTableReader inputSStable = reader.getSstableReader();
@@ -154,13 +162,16 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
     @Test
     public void testCreatingSSTableWithTnx() throws IOException {
         final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
-        final Descriptor descriptor = Descriptor.fromFilename(inputSSTableFullPathFileName);
+
+        final Descriptor descriptor = Descriptor.fromFilename(inputSSTableFullPathFileName,
+                                                              TestBaseSSTableFunSuite.HADOOP_CONF);
         final CFMetaData inputCFMetaData =
                 SSTableUtils.metaDataFromSSTable(inputSSTableFullPathFileName,
                                                         "casspactor",
                                                         "bills_compress",
                                                         Collections.<String>emptyList(),
-                                                        Collections.<String>emptyList());
+                                                        Collections.<String>emptyList(),
+                                                        TestBaseSSTableFunSuite.HADOOP_CONF);
 
         final CFMetaData outputCFMetaData = SSTableUtils.createNewCFMetaData(descriptor, inputCFMetaData);
         final SerializationHeader header = new SerializationHeader(true, outputCFMetaData,
@@ -173,7 +184,7 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
             "casspactor",
             "bills_compress",
             9,
-            SSTableFormat.Type.BIG);
+            SSTableFormat.Type.BIG, TestBaseSSTableFunSuite.HADOOP_CONF);
 
         final SSTableTxnWriter writer = SSTableTxnWriter.create(outputCFMetaData,
                                                                 outDescriptor,
@@ -257,17 +268,21 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
     @Test
     public void testConvertingSSTable() throws IOException {
         final String inputFile = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
-        final CFMetaData inputCFMetaData = SSTableUtils.metaDataFromSSTable(inputFile);
+        final CFMetaData inputCFMetaData = SSTableUtils.metaDataFromSSTable(inputFile,
+                                                                            TestBaseSSTableFunSuite.HADOOP_CONF);
         final CassandraTable cassandraTable = new CassandraTable.CassandraTableBuilder()
                                                                 .withClusterName("cass_share")
                                                                 .withKeyspaceName("casspactor")
                                                                 .withTableName("bills_compress")
                                                                 .build();
         final String outputLocation = "/tmp";
-        final SSTableSingleWriter<UnfilteredRowIterator> writer =
-                new SSTableSingleWriter(inputCFMetaData, cassandraTable, outputLocation);
 
-        SSTableSingleReader reader = new SSTableSingleReader(inputFile, cassandraTable);
+        final SSTableSingleWriter<UnfilteredRowIterator> writer =
+                new SSTableSingleWriter(inputCFMetaData, cassandraTable, outputLocation,
+                                        TestBaseSSTableFunSuite.HADOOP_CONF);
+
+        SSTableSingleReader reader = new SSTableSingleReader(inputFile, cassandraTable,
+                                                             TestBaseSSTableFunSuite.HADOOP_CONF);
         final ISSTableScanner currentScanner = reader.getSSTableScanner();
 
         writer.write(currentScanner);

@@ -22,10 +22,12 @@ import org.apache.cassandra.db.rows.Cell;
 import org.apache.cassandra.db.rows.Row;
 import org.apache.cassandra.db.rows.RowIterator;
 import org.apache.cassandra.utils.ByteBufferUtil;
+import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
@@ -37,17 +39,18 @@ import java.util.Map;
 public class TestBaseSSTableFunSuite {
 
     /** Base directory location. */
-    public static final String CASS3_DATA_DIR = "src/test/resources/data/cass3/keyspace1/";
-    public static final String CASS21_DATA_DIR = "src/test/resources/data/cass2.1/keyspace1/";
-
-    //public static final String CASS21_DATA_DIR = System.getProperty("user.dir") + "/sstable-adaptor-core/" +
-    //                                             "src/test/resources/data/cass2.1/keyspace1/";
+    public static String CASS3_DATA_DIR = System.getProperty("user.dir") + File.separator +
+                             "src/test/resources/data/cass3/keyspace1/";
+    public static String CASS21_DATA_DIR = System.getProperty("user.dir") + File.separator +
+                             "src/test/resources/data/cass2.1/keyspace1/";
 
     /** S3 location to contain the input sstable files */
     public static final String S3_INPUT_DIR = System.getenv("S3_INPUT_DIR");
 
     /** Writable S3 location to store the sstable output files */
     public static final String S3_OUTPUT_DIR = System.getenv("S3_OUTPUT_DIR");
+
+    public static final Configuration HADOOP_CONF = new Configuration();
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestBaseSSTableFunSuite.class);
 
@@ -58,6 +61,7 @@ public class TestBaseSSTableFunSuite {
                     envName,
                     env.get(envName));
         }
+        System.out.println("*********************************&&&&&*****************");
     }
 
     /**
@@ -67,8 +71,18 @@ public class TestBaseSSTableFunSuite {
     public static void setup() throws Exception {
         LOGGER.info("Running TestBaseSSTableFunSuite setup ...");
         System.setProperty("hadoop.home.dir", "/");
-        //DatabaseDescriptor.getRawConfig().file_cache_size_in_mb =
-        //              Math.min(512, (int) (Runtime.getRuntime().maxMemory() / (4 * 1048576)));
+
+        if (System.getProperty("user.dir").endsWith("sstable-adaptor-core")) {
+            CASS3_DATA_DIR = System.getProperty("user.dir") + File.separator +
+                             "src/test/resources/data/cass3/keyspace1/";
+            CASS21_DATA_DIR = System.getProperty("user.dir") + File.separator +
+                              "src/test/resources/data/cass2.1/keyspace1/";
+        } else {
+            CASS3_DATA_DIR = System.getProperty("user.dir") + File.separator + "sstable-adaptor-core" +
+                    File.separator + "src/test/resources/data/cass3/keyspace1/";
+            CASS21_DATA_DIR = System.getProperty("user.dir") + File.separator + "sstable-adaptor-core" +
+                    File.separator + "src/test/resources/data/cass2.1/keyspace1/";
+        }
     }
 
     /**

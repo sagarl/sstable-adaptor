@@ -96,8 +96,8 @@ public class SequentialWriter extends BufferedDataOutputStreamPlus implements Tr
      *
      * @param filePath file to write
      */
-    public SequentialWriter(String filePath) throws IOException {
-        this(filePath, SequentialWriterOption.DEFAULT);
+    public SequentialWriter(String filePath, Configuration conf) throws IOException {
+        this(filePath, SequentialWriterOption.DEFAULT, conf);
     }
 
     /**
@@ -106,8 +106,8 @@ public class SequentialWriter extends BufferedDataOutputStreamPlus implements Tr
      * @param filePath File to write
      * @param option Writer option
      */
-    public SequentialWriter(String filePath, SequentialWriterOption option) {
-        super(HadoopFileUtils.newFilesystemChannel(filePath), option.allocateBuffer());
+    public SequentialWriter(String filePath, SequentialWriterOption option, Configuration conf) {
+        super(HadoopFileUtils.newFilesystemChannel(filePath, conf), option.allocateBuffer());
         strictFlushing = true;
         this.filePath = filePath;
         this.option = option;

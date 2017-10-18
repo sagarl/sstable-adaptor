@@ -2,20 +2,14 @@ package com.netflix.sstableadaptor;
 
 import com.netflix.sstableadaptor.sstable.SSTableIterator;
 import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
-import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.cql3.QueryProcessor;
 import org.apache.cassandra.cql3.statements.CFProperties;
 import org.apache.cassandra.cql3.statements.CreateTableStatement;
 import org.apache.cassandra.cql3.statements.ParsedStatement;
-import org.apache.cassandra.db.rows.Cell;
-import org.apache.cassandra.db.rows.Row;
 import org.apache.cassandra.db.rows.RowIterator;
-import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.dht.Murmur3Partitioner;
-import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
-import org.apache.cassandra.utils.ByteBufferUtil;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -24,15 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -70,32 +56,23 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
     @Test
     public void testOnLocalDataCompositePartitionKey() throws IOException {
         final String cql = "CREATE TABLE casspactor2.compressed_bills (\n" +
-                "    user text,\n" +
-                "    email text,\n" +
-                "    expense_id int,\n" +
-                "    item_id int,\n" +
-                "    account_id text static,\n" +
-                "    amount int,\n" +
-                "    balance int static,\n" +
-                "    name text,\n" +
-                "    PRIMARY KEY ((user, email), expense_id, item_id)\n" +
-                ") WITH CLUSTERING ORDER BY (expense_id ASC, item_id ASC)\n" +
-                "    AND bloom_filter_fp_chance = 0.01\n" +
-                "    AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}\n" +
-                "    AND comment = ''\n" +
-                "    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4'}\n" +
-                "    AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}\n" +
-                "    AND crc_check_chance = 1.0\n" +
-                "    AND dclocal_read_repair_chance = 0.1\n" +
-                "    AND default_time_to_live = 0\n" +
-                "    AND gc_grace_seconds = 864000\n" +
-                "    AND max_index_interval = 2048\n" +
-                "    AND memtable_flush_period_in_ms = 0\n" +
-                "    AND min_index_interval = 128\n" +
-                "    AND read_repair_chance = 0.0\n" +
-                "    AND speculative_retry = '99PERCENTILE'";
+                "    user text," +
+                "    email text," +
+                "    expense_id int," +
+                "    item_id int," +
+                "    account_id text static," +
+                "    amount int," +
+                "    balance int static," +
+                "    name text," +
+                "    PRIMARY KEY ((user, email), expense_id, item_id)" +
+                ") WITH CLUSTERING ORDER BY (expense_id ASC, item_id ASC)" +
+                "    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'}" +
+                "    AND compression = {'chunk_length_in_kb': '64', " +
+                "                       'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}";
 
-        final String inputSSTableFullPathFileName = CASS21_DATA_DIR + "compressed_bills-03c5a7b0643c11e7936273d8df3aeac7/casspactor2-compressed_bills-ka-1-Data.db";
+
+        final String inputSSTableFullPathFileName = CASS21_DATA_DIR +
+                        "compressed_bills-03c5a7b0643c11e7936273d8df3aeac7/casspactor2-compressed_bills-ka-1-Data.db";
 
         final int counter = getRowCount(inputSSTableFullPathFileName, cql, false);
 
@@ -110,25 +87,15 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testOnLocalDataCompositePartitionKey2() throws IOException {
-        final String cql = "CREATE TABLE casspactor2.viewing_history (\n" +
-                "    user text PRIMARY KEY,\n" +
-                "    movie_id text\n" +
-                ") WITH bloom_filter_fp_chance = 0.01\n" +
-                "    AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}\n" +
-                "    AND comment = ''\n" +
-                "    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4'}\n" +
-                "    AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}\n" +
-                "    AND crc_check_chance = 1.0\n" +
-                "    AND dclocal_read_repair_chance = 0.1\n" +
-                "    AND default_time_to_live = 0\n" +
-                "    AND gc_grace_seconds = 864000\n" +
-                "    AND max_index_interval = 2048\n" +
-                "    AND memtable_flush_period_in_ms = 0\n" +
-                "    AND min_index_interval = 128\n" +
-                "    AND read_repair_chance = 0.0\n" +
-                "    AND speculative_retry = '99PERCENTILE';";
+        final String cql = "CREATE TABLE casspactor2.viewing_history (" +
+                "    user text PRIMARY KEY," +
+                "    movie_id text" +
+                ") WITH compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'}" +
+                "    AND compression = {'chunk_length_in_kb': '64', " +
+                "                       'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}";
 
-        final String inputSSTableFullPathFileName = CASS21_DATA_DIR + "viewing_history-04d2b570643d11e7936273d8df3aeac7/casspactor2-viewing_history-ka-1-Data.db";
+        final String inputSSTableFullPathFileName = CASS21_DATA_DIR +
+                            "viewing_history-04d2b570643d11e7936273d8df3aeac7/casspactor2-viewing_history-ka-1-Data.db";
 
         final int counter = getRowCount(inputSSTableFullPathFileName, cql, false);
 
@@ -143,29 +110,20 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testOnLocalDataThriftCreatedTable() throws IOException {
-        final String cql = "CREATE TABLE abc.user_profiles (\n" +
-                "    key text PRIMARY KEY,\n" +
-                "    email text,\n" +
-                "    first_name text,\n" +
-                "    last_name text,\n" +
-                "    year_of_birth varint\n" +
-                ") WITH COMPACT STORAGE\n" +
-                "    AND bloom_filter_fp_chance = 0.01\n" +
-                "    AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}\n" +
-                "    AND comment = ''\n" +
-                "    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4'}\n" +
-                "    AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}\n" +
-                "    AND crc_check_chance = 1.0\n" +
-                "    AND dclocal_read_repair_chance = 0.1\n" +
-                "    AND default_time_to_live = 0\n" +
-                "    AND gc_grace_seconds = 864000\n" +
-                "    AND max_index_interval = 2048\n" +
-                "    AND memtable_flush_period_in_ms = 0\n" +
-                "    AND min_index_interval = 128\n" +
-                "    AND read_repair_chance = 0.0\n" +
-                "    AND speculative_retry = 'NONE';";
+        final String cql = "CREATE TABLE abc.user_profiles (" +
+                "    key text PRIMARY KEY," +
+                "    email text," +
+                "    first_name text," +
+                "    last_name text," +
+                "    year_of_birth varint" +
+                ") WITH COMPACT STORAGE" +
+                "    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', " +
+                "                      'max_threshold': '32', 'min_threshold': '4'}" +
+                "    AND compression = {'chunk_length_in_kb': '64', " +
+                "                       'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}";
 
-        final String inputSSTableFullPathFileName = CASS21_DATA_DIR + "user_profiles-b355bee0669911e7a49e993faaf28cc4/abc-user_profiles-ka-1-Data.db";
+        final String inputSSTableFullPathFileName = CASS21_DATA_DIR +
+                                       "user_profiles-b355bee0669911e7a49e993faaf28cc4/abc-user_profiles-ka-1-Data.db";
 
         final int counter = getRowCount(inputSSTableFullPathFileName, cql, true);
 
@@ -178,9 +136,8 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
         LOGGER.info("Input file name: " + inputSSTableFullPathFileName);
         int counter = 0;
         CFMetaData cfMetaData = CFMetaData.compile(cql, "casspactor2");
-
         final SSTableSingleReader sstableSingleReader =
-                new SSTableSingleReader(inputSSTableFullPathFileName, cfMetaData);
+                new SSTableSingleReader(inputSSTableFullPathFileName, cfMetaData, TestBaseSSTableFunSuite.HADOOP_CONF);
         final ISSTableScanner currentScanner =
                 sstableSingleReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
 
@@ -199,21 +156,22 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
 
     @Test
     public void testParsingCQLOnCompoundedTable() {
-       String cql = "CREATE TABLE keyspace1.compressed_bills (\n" +
-               "     user text,\n" +
-               "     email text,\n" +
-               "     account_id text static,\n" +
-               "     balance int static,\n" +
-               "     expense_id int,\n" +
-               "     item_id int,\n" +
-               "     amount int,\n" +
-               "     name text,\n" +
+       String cql = "CREATE TABLE keyspace1.compressed_bills (" +
+               "     user text," +
+               "     email text," +
+               "     account_id text static," +
+               "     balance int static," +
+               "     expense_id int," +
+               "     item_id int," +
+               "     amount int," +
+               "     name text," +
                "     PRIMARY KEY ((user, email), expense_id, item_id))";
 
 
         ParsedStatement stmt = QueryProcessor.parseStatement(cql);
         stmt.properties.properties.addProperty(CFProperties.KEYSPACE_NAME, "keyspace1");
-        stmt.properties.properties.addProperty(CFProperties.PARTITIONER_CLASS, "org.apache.cassandra.dht.Murmur3Partitioner");
+        stmt.properties.properties.addProperty(CFProperties.PARTITIONER_CLASS,
+                                               "org.apache.cassandra.dht.Murmur3Partitioner");
 
         ParsedStatement.Prepared preparedStmt = stmt.prepare();
 
@@ -225,15 +183,15 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
 
     @Test
     public void testParsingCQLOnCompoundedTableWithCFMetaData() {
-        String cql = "CREATE TABLE compressed_bills (\n" +
-                "     user text,\n" +
-                "     email text,\n" +
-                "     account_id text static,\n" +
-                "     balance int static,\n" +
-                "     expense_id int,\n" +
-                "     item_id int,\n" +
-                "     amount int,\n" +
-                "     name text,\n" +
+        String cql = "CREATE TABLE compressed_bills (" +
+                "     user text," +
+                "     email text," +
+                "     account_id text static," +
+                "     balance int static," +
+                "     expense_id int," +
+                "     item_id int," +
+                "     amount int," +
+                "     name text," +
                 "     PRIMARY KEY ((user, email), expense_id, item_id))";
 
         CFMetaData cfMetaData = CFMetaData.compile(cql, "keyspace1");
@@ -244,12 +202,14 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
 
         cfMetaData.primaryKeyColumns().forEach(col -> {
             String colName = col.name.toString();
-            Assert.assertTrue(colName.equals("user") || colName.equals("email") || colName.equals("expense_id") || colName.equals("item_id"));
+            Assert.assertTrue(colName.equals("user") || colName.equals("email") ||
+                              colName.equals("expense_id") || colName.equals("item_id"));
         });
 
         cfMetaData.partitionColumns().forEach(col -> {
             String colName = col.name.toString();
-            Assert.assertTrue(colName.equals("account_id") || colName.equals("balance") || colName.equals("amount") || colName.equals("name"));
+            Assert.assertTrue(colName.equals("account_id") || colName.equals("balance") ||
+                              colName.equals("amount") || colName.equals("name"));
         });
 
         cfMetaData.clusteringColumns().forEach(col -> {
@@ -278,23 +238,13 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
 
     @Test
     public void testParsingCQLOnSimpleTable() throws IOException {
-        final String cql = "CREATE TABLE casspactor2.viewing_history (\n" +
-                "    user text PRIMARY KEY,\n" +
-                "    movie_id text\n" +
-                ") WITH bloom_filter_fp_chance = 0.01\n" +
-                "    AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}\n" +
-                "    AND comment = ''\n" +
-                "    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4'}\n" +
-                "    AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}\n" +
-                "    AND crc_check_chance = 1.0\n" +
-                "    AND dclocal_read_repair_chance = 0.1\n" +
-                "    AND default_time_to_live = 0\n" +
-                "    AND gc_grace_seconds = 864000\n" +
-                "    AND max_index_interval = 2048\n" +
-                "    AND memtable_flush_period_in_ms = 0\n" +
-                "    AND min_index_interval = 128\n" +
-                "    AND read_repair_chance = 0.0\n" +
-                "    AND speculative_retry = '99PERCENTILE';";
+        final String cql = "CREATE TABLE casspactor2.viewing_history (" +
+                "    user text PRIMARY KEY," +
+                "    movie_id text" +
+                ") WITH compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', " +
+                "                      'max_threshold': '32', 'min_threshold': '4'}" +
+                "    AND compression = {'chunk_length_in_kb': '64', " +
+                "                       'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}";
 
         CFMetaData cfMetaData = CFMetaData.compile(cql, "casspactor2");
 
@@ -332,27 +282,16 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
 
     @Test
     public void testParsingCQLOnThriftCreatedTable() throws IOException {
-        final String cql = "CREATE TABLE abc.user_profiles (\n" +
-                "    key text PRIMARY KEY,\n" +
-                "    email text,\n" +
-                "    first_name text,\n" +
-                "    last_name text,\n" +
-                "    year_of_birth varint\n" +
-                ") WITH COMPACT STORAGE\n" +
-                "    AND bloom_filter_fp_chance = 0.01\n" +
-                "    AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}\n" +
-                "    AND comment = ''\n" +
-                "    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4'}\n" +
-                "    AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}\n" +
-                "    AND crc_check_chance = 1.0\n" +
-                "    AND dclocal_read_repair_chance = 0.1\n" +
-                "    AND default_time_to_live = 0\n" +
-                "    AND gc_grace_seconds = 864000\n" +
-                "    AND max_index_interval = 2048\n" +
-                "    AND memtable_flush_period_in_ms = 0\n" +
-                "    AND min_index_interval = 128\n" +
-                "    AND read_repair_chance = 0.0\n" +
-                "    AND speculative_retry = 'NONE';";
+        final String cql = "CREATE TABLE abc.user_profiles (" +
+                "    key text PRIMARY KEY," +
+                "    email text," +
+                "    first_name text," +
+                "    last_name text," +
+                "    year_of_birth varint" +
+                ") WITH COMPACT STORAGE" +
+                "    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'}" +
+                "    AND compression = {'chunk_length_in_kb': '64', " +
+                "                       'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}";
 
         CFMetaData cfMetaData = CFMetaData.compile(cql, "abc");
 

@@ -26,6 +26,7 @@ import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.io.sstable.IndexSummary;
 import org.apache.cassandra.serializers.UTF8Serializer;
+import org.apache.hadoop.conf.Configuration;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -85,7 +86,7 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
     public void testAccessSSTableMetadataCase1() throws IOException {
         final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
         final SSTableSingleReader SSTableSingleReader =
-                   new SSTableSingleReader(inputSSTableFullPathFileName);
+                   new SSTableSingleReader(inputSSTableFullPathFileName, TestBaseSSTableFunSuite.HADOOP_CONF);
 
         LOGGER.info("File location: " + SSTableSingleReader.getFileLocation());
         LOGGER.info("File size: " + SSTableSingleReader.getFileLength());
@@ -230,8 +231,9 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
     @Test
     public void testAccessSSTableMetadataCase2() throws IOException {
         final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "compressed_bills/mc-2-big-Data.db";
+        final Configuration conf = new Configuration();
         final SSTableSingleReader SSTableSingleReader =
-            new SSTableSingleReader(inputSSTableFullPathFileName);
+            new SSTableSingleReader(inputSSTableFullPathFileName, conf);
 
         final CFMetaData cfMetaData = SSTableSingleReader.getCfMetaData();
 
@@ -360,15 +362,17 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
         final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "compressed_bills/mc-2-big-Data.db";
 
         try {
+            final Configuration conf = new Configuration();
             SSTableSingleReader sstableSingleReader =
-                    new SSTableSingleReader(inputSSTableFullPathFileName, "ks1", "table1");
+                    new SSTableSingleReader(inputSSTableFullPathFileName,
+                                           "ks1", "table1", conf);
 
             Assert.assertEquals("ks1", sstableSingleReader.getCfMetaData().ksName);
             Assert.assertEquals("table1", sstableSingleReader.getCfMetaData().cfName);
             Assert.assertEquals(inputSSTableFullPathFileName, sstableSingleReader.getSstableReader().getFilename());
 
             sstableSingleReader =
-                    new SSTableSingleReader(inputSSTableFullPathFileName);
+                    new SSTableSingleReader(inputSSTableFullPathFileName, conf);
             Assert.assertEquals("keyspace1", sstableSingleReader.getCfMetaData().ksName);
             Assert.assertEquals("compressed_bills", sstableSingleReader.getCfMetaData().cfName);
 

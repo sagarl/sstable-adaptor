@@ -21,7 +21,6 @@ import com.netflix.sstableadaptor.sstable.SSTableIterator;
 import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.rows.RowIterator;
-import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -144,7 +143,7 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
 
         try {
             final SSTableSingleReader sstableSingleReader =
-                        new SSTableSingleReader(inputSSTableFullPathFileName);
+                        new SSTableSingleReader(inputSSTableFullPathFileName, TestBaseSSTableFunSuite.HADOOP_CONF);
             final ISSTableScanner currentScanner =
                     sstableSingleReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
 
@@ -173,8 +172,10 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
     @Test
     public void testCasspactorIterator() throws IOException {
         final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
-        final SSTableSingleReader reader1 = new SSTableSingleReader(inputSSTableFullPathFileName);
-        final SSTableSingleReader reader2 = new SSTableSingleReader(inputSSTableFullPathFileName);
+        final SSTableSingleReader reader1 = new SSTableSingleReader(inputSSTableFullPathFileName,
+                                                                   TestBaseSSTableFunSuite.HADOOP_CONF);
+        final SSTableSingleReader reader2 = new SSTableSingleReader(inputSSTableFullPathFileName,
+                                                     TestBaseSSTableFunSuite.HADOOP_CONF);
         final CFMetaData cfMetaData = reader1.getCfMetaData();
         final List<ISSTableScanner> scanners = new ArrayList<>();
         final int nowInSecs = (int) (System.currentTimeMillis() / 1000);
@@ -201,18 +202,19 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
                 "compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'}\n    " +
                 "AND compression = {'sstable_compression': 'org.apache.cassandra.io.compress.LZ4Compressor'};";
 
-        CFMetaData cfMetaData = CFMetaData.compile(inputCql,
+        final CFMetaData cfMetaData = CFMetaData.compile(inputCql,
                                                    "casspactor",
                                                    "org.apache.cassandra.dht.RandomPartitioner");
 
         final SSTableSingleReader cass21Reader0 =
                 new SSTableSingleReader(CASS21_DATA_DIR + "auditlogsbyid/keyspace1-auditlogsbyid-ka-1-Data.db",
-                                        cfMetaData);
+                                        cfMetaData, TestBaseSSTableFunSuite.HADOOP_CONF);
         final SSTableSingleReader cass21Reader1 =
                 new SSTableSingleReader(CASS21_DATA_DIR + "auditlogsbyid/keyspace1-auditlogsbyid-ka-3-Data.db",
-                                        cfMetaData);
+                                        cfMetaData, TestBaseSSTableFunSuite.HADOOP_CONF);
         final SSTableSingleReader cass3Reader =
-                new SSTableSingleReader(CASS3_DATA_DIR + "auditlogsbyid/mc-1-big-Data.db ");
+                new SSTableSingleReader(CASS3_DATA_DIR + "auditlogsbyid/mc-1-big-Data.db ",
+                                        TestBaseSSTableFunSuite.HADOOP_CONF);
 
 
         final List<ISSTableScanner> scanners = new ArrayList<>();

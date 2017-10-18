@@ -17,8 +17,8 @@
  */
 package org.apache.cassandra.io.util;
 
-import java.io.File;
-import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+
 import java.nio.ByteBuffer;
 import java.util.Optional;
 
@@ -32,11 +32,14 @@ public class ChecksummedSequentialWriter extends SequentialWriter
     private final ChecksumWriter crcMetadata;
     private final Optional<String> digestFile;
 
-    public ChecksummedSequentialWriter(String file, String crcPath, String digestFile, SequentialWriterOption option)
+    public ChecksummedSequentialWriter(String file, String crcPath, String digestFile,
+                                       SequentialWriterOption option,
+                                       Configuration configuration)
     {
-        super(file, option);
-        crcWriter = new SequentialWriter(crcPath, CRC_WRITER_OPTION);
-        crcMetadata = new ChecksumWriter(crcWriter);
+        super(file, option, configuration);
+
+        crcWriter = new SequentialWriter(crcPath, CRC_WRITER_OPTION, configuration);
+        crcMetadata = new ChecksumWriter(crcWriter, configuration);
         crcMetadata.writeChunkSize(buffer.capacity());
         this.digestFile = Optional.ofNullable(digestFile);
     }

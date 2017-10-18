@@ -28,19 +28,36 @@ import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
 import org.apache.cassandra.io.sstable.Descriptor;
-import org.apache.cassandra.io.util.*;
+import org.apache.cassandra.io.util.BufferedDataOutputStreamPlus;
+import org.apache.cassandra.io.util.ChannelProxy;
+import org.apache.cassandra.io.util.DataInputPlus;
+import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.io.util.DataOutputStreamPlus;
+import org.apache.cassandra.io.util.HadoopFileUtils;
+import org.apache.cassandra.io.util.Memory;
+import org.apache.cassandra.io.util.SafeMemory;
 import org.apache.cassandra.schema.CompressionParams;
 import org.apache.cassandra.utils.ChecksumType;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Pair;
 import org.apache.cassandra.utils.concurrent.Ref;
 import org.apache.cassandra.utils.concurrent.Transactional;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.io.DataInput;
+import java.io.DataInputStream;
+import java.io.DataOutput;
+import java.io.EOFException;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 /**
  * Holds metadata about compressed file
@@ -73,17 +90,19 @@ public class CompressionMetadata
      */
     //static Map<String, CompressionMetadata> fileCompressionMetadata = new ConcurrentHashMap<>();
     //private static Object lock = new Object();
-    public static CompressionMetadata create(String dataFilePath, long dataFileSize)
+    public static CompressionMetadata create(String dataFilePath, long dataFileSize, Configuration configuration)
     {
-        Descriptor desc = Descriptor.fromFilename(dataFilePath);
+        Descriptor desc = Descriptor.fromFilename(dataFilePath, configuration);
         logger.info("Creating CompressionMetadata for file [" + dataFilePath + "]");
         return new CompressionMetadata(desc.filenameFor(Component.COMPRESSION_INFO),
                 dataFileSize,
-                desc.version.compressedChecksumType());
+                desc.version.compressedChecksumType(),
+                configuration);
     }
 
     @VisibleForTesting
-    public CompressionMetadata(String indexFilePath, long compressedLength, ChecksumType checksumType)
+    public CompressionMetadata(String indexFilePath, long compressedLength,
+                               ChecksumType checksumType, Configuration configuration)
     {
         this.indexFilePath = indexFilePath;
         this.checksumType = checksumType;
@@ -99,7 +118,7 @@ public class CompressionMetadata
         boolean isSuccess = false;
 
         while (!isSuccess) {
-            try (ChannelProxy proxy = ChannelProxy.newInstance(indexFilePath);
+            try (ChannelProxy proxy = ChannelProxy.newInstance(indexFilePath, configuration);
                  DataInputStream stream = new DataInputStream(proxy.getInputStream())) {
                 if (attempt > 0)
                     FBUtilities.sleepQuietly((int) Math.round(Math.pow(2, attempt)) * 1000);
@@ -324,19 +343,21 @@ public class CompressionMetadata
         private int maxCount = 100;
         private SafeMemory offsets = new SafeMemory(maxCount * 8L);
         private int count = 0;
+        private Configuration conf;
 
         // provided by user when setDescriptor
         private long dataLength, chunkCount;
 
-        private Writer(CompressionParams parameters, String path)
+        private Writer(CompressionParams parameters, String path, Configuration conf)
         {
             this.parameters = parameters;
             filePath = path;
+            this.conf = conf;
         }
 
-        public static Writer open(CompressionParams parameters, String path)
+        public static Writer open(CompressionParams parameters, String path, Configuration conf)
         {
-            return new Writer(parameters, path);
+            return new Writer(parameters, path, conf);
         }
 
         public void addOffset(long offset)
@@ -396,7 +417,7 @@ public class CompressionMetadata
             }
 
             // flush the data to disk
-            try (HadoopFileUtils.HadoopFileChannel hos = HadoopFileUtils.newFilesystemChannel(filePath);
+            try (HadoopFileUtils.HadoopFileChannel hos = HadoopFileUtils.newFilesystemChannel(filePath, conf);
                  DataOutputStreamPlus out = new BufferedDataOutputStreamPlus(hos))
             {
                 writeHeader(out, dataLength, count);

@@ -40,6 +40,7 @@ import org.apache.cassandra.io.sstable.metadata.ValidationMetadata;
 import org.apache.cassandra.schema.CompressionParams;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.directory.api.util.Strings;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,8 +55,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *  Utilities on a sstable file.
- *  @author mdo
+ * Utilities on a sstable file.
+ *
+ * @author mdo
  */
 public final class SSTableUtils {
 
@@ -63,7 +65,8 @@ public final class SSTableUtils {
 
     /**
      * Parse the list of values out of a composite key.
-     * @param cfMetaData CFMetaData of a given table
+     *
+     * @param cfMetaData   CFMetaData of a given table
      * @param partitionKey a byte buffer of a composite partition key
      * @return a list of value objects corresponding to the key declaration and the order
      */
@@ -90,17 +93,19 @@ public final class SSTableUtils {
     public static CFMetaData loadCFMetaData(String dbFile,
                                             CassandraTable cassTable,
                                             List<String> partitionKeyNames,
-                                            List<String> clusteringKeyNames) throws IOException {
+                                            List<String> clusteringKeyNames,
+                                            Configuration configuration) throws IOException {
         return metaDataFromSSTable(dbFile,
                 cassTable.getKeyspaceName(),
                 cassTable.getTableName(),
                 partitionKeyNames,
-                clusteringKeyNames);
+                clusteringKeyNames,
+                configuration);
     }
 
     public static SSTableWriter createSSTableWriter(final Descriptor inputSSTableDescriptor,
-                                                     final CFMetaData outCfmMetaData,
-                                                     final SSTableReader inputSSTable) {
+                                                    final CFMetaData outCfmMetaData,
+                                                    final SSTableReader inputSSTable) {
         final String sstableDirectory = System.getProperty("user.dir") + "/cassandra/compresseddata";
         LOGGER.info("Output directory: " + sstableDirectory);
 
@@ -121,7 +126,8 @@ public final class SSTableUtils {
                         outputDirectory.getAbsolutePath(),
                         inputSSTableDescriptor.ksname, inputSSTableDescriptor.cfname,
                         inputSSTableDescriptor.generation,
-                        sstableFormat),
+                        sstableFormat,
+                        inputSSTableDescriptor.getConfiguration()),
                 inputSSTable.getTotalRows(), 0L, outCfmMetaData,
                 new MetadataCollector(outCfmMetaData.comparator)
                         .sstableLevel(inputSSTable.getSSTableMetadata().sstableLevel),
@@ -133,7 +139,7 @@ public final class SSTableUtils {
     }
 
     public static CFMetaData createNewCFMetaData(final Descriptor inputSSTableDescriptor,
-                                                  final CFMetaData metadata) {
+                                                 final CFMetaData metadata) {
         final CFMetaData.Builder cfMetadataBuilder = CFMetaData.Builder.create(inputSSTableDescriptor.ksname,
                 inputSSTableDescriptor.cfname);
 
@@ -165,10 +171,10 @@ public final class SSTableUtils {
     /**
      * Construct table schema from info stored in SSTable's Stats.db.
      *
-     * @param desc SSTable's descriptor
-     * @param keyspaceName keyspace name
-     * @param tableName table name
-     * @param partitionKeyNames list of partition key names
+     * @param desc               SSTable's descriptor
+     * @param keyspaceName       keyspace name
+     * @param tableName          table name
+     * @param partitionKeyNames  list of partition key names
      * @param clusteringKeyNames list of clustering key names
      * @return Restored CFMetaData
      * @throws IOException when Stats.db cannot be read
@@ -216,7 +222,7 @@ public final class SSTableUtils {
             assert partitionKeyNames.size() == 0
                     || partitionKeyNames.size() == ((CompositeType) header.getKeyType()).types.size();
             int counter = 0;
-            for (AbstractType type: ((CompositeType) header.getKeyType()).types) {
+            for (AbstractType type : ((CompositeType) header.getKeyType()).types) {
                 String partitionColName = "PartitionKey" + counter;
                 if (partitionKeyNames.size() > 0) {
                     partitionColName = partitionKeyNames.get(counter);
@@ -252,8 +258,8 @@ public final class SSTableUtils {
      * @return Restored CFMetaData
      * @throws IOException when Stats.db cannot be read
      */
-    public static CFMetaData metaDataFromSSTable(final String filePath) throws IOException {
-        final Descriptor descriptor = Descriptor.fromFilename(filePath);
+    public static CFMetaData metaDataFromSSTable(final String filePath, Configuration configuration) throws IOException {
+        final Descriptor descriptor = Descriptor.fromFilename(filePath, configuration);
 
         return metadataFromSSTable(descriptor, null, null,
                 Collections.<String>emptyList(), Collections.<String>emptyList());
@@ -262,16 +268,17 @@ public final class SSTableUtils {
     /**
      * Construct table schema from a file.
      *
-     * @param filePath SSTable file location
-     * @param partitionKeyNames list of partition key names
+     * @param filePath           SSTable file location
+     * @param partitionKeyNames  list of partition key names
      * @param clusteringKeyNames list of clustering key names
      * @return Restored CFMetaData
      * @throws IOException when Stats.db cannot be read
      */
     public static CFMetaData metaDataFromSSTable(final String filePath,
                                                  final List<String> partitionKeyNames,
-                                                 final List<String> clusteringKeyNames) throws IOException {
-        final Descriptor descriptor = Descriptor.fromFilename(filePath);
+                                                 final List<String> clusteringKeyNames,
+                                                 final Configuration configuration) throws IOException {
+        final Descriptor descriptor = Descriptor.fromFilename(filePath, configuration);
 
         return metadataFromSSTable(descriptor, null, null,
                 partitionKeyNames, clusteringKeyNames);
@@ -280,10 +287,10 @@ public final class SSTableUtils {
     /**
      * Construct table schema from a file.
      *
-     * @param filePath SSTable file location
-     * @param keyspaceName keyspace name
-     * @param tableName table name
-     * @param partitionKeyNames list of partition key names
+     * @param filePath           SSTable file location
+     * @param keyspaceName       keyspace name
+     * @param tableName          table name
+     * @param partitionKeyNames  list of partition key names
      * @param clusteringKeyNames list of clustering key names
      * @return Restored CFMetaData
      * @throws IOException when Stats.db cannot be read
@@ -292,8 +299,9 @@ public final class SSTableUtils {
                                                  final String keyspaceName,
                                                  final String tableName,
                                                  final List<String> partitionKeyNames,
-                                                 final List<String> clusteringKeyNames) throws IOException {
-        final Descriptor descriptor = Descriptor.fromFilename(filePath);
+                                                 final List<String> clusteringKeyNames,
+                                                 final Configuration configuration) throws IOException {
+        final Descriptor descriptor = Descriptor.fromFilename(filePath, configuration);
 
         return metadataFromSSTable(descriptor, keyspaceName, tableName,
                 partitionKeyNames, clusteringKeyNames);

@@ -33,6 +33,7 @@ import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
 import org.apache.cassandra.io.util.HadoopFileUtils;
 import org.apache.cassandra.utils.EstimatedHistogram;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +70,7 @@ public class SSTableSingleReader {
     private IndexSummary indexSummary;
 
     private CFMetaData cfMetaData;
+    private Configuration conf;
 
     /**
      *  Constructing a reader instance to take in a location for the file and set the
@@ -76,12 +78,14 @@ public class SSTableSingleReader {
      *  @param filePath location of the sstable file
      *  @throws IOException when file location is not valid
      */
-    public SSTableSingleReader(final String filePath) throws IOException {
-        this(filePath, Collections.<String>emptyList(), Collections.<String>emptyList());
+    public SSTableSingleReader(final String filePath, Configuration configuration) throws IOException {
+        this(filePath, Collections.<String>emptyList(), Collections.<String>emptyList(), configuration);
     }
 
-    public SSTableSingleReader(final String filePath, CFMetaData cfMetaData) throws IOException {
+    public SSTableSingleReader(final String filePath, CFMetaData cfMetaData, Configuration configuration)
+            throws IOException {
         this.fileLocation = filePath;
+        this.conf = configuration;
         initialization(cfMetaData);
     }
 
@@ -92,11 +96,13 @@ public class SSTableSingleReader {
      *  @param filePath location of the sstable file
      *  @throws IOException when file location is not valid
      */
-    public SSTableSingleReader(final String filePath, CassandraTable cassandraTable) throws IOException {
+    public SSTableSingleReader(final String filePath, CassandraTable cassandraTable, Configuration configuration)
+            throws IOException {
         this(filePath, cassandraTable.getKeyspaceName(),
                 cassandraTable.getTableName(),
                 cassandraTable.getPartitionKeyNames(),
-                cassandraTable.getClusteringKeyNames());
+                cassandraTable.getClusteringKeyNames(),
+                configuration);
     }
 
     /**
@@ -104,8 +110,11 @@ public class SSTableSingleReader {
      *  @param filePath location of the sstable file
      *  @throws IOException when file location is not valid
      */
-    public SSTableSingleReader(final String filePath, String keyspaceName, String tableName) throws IOException {
-        this(filePath, keyspaceName, tableName, Collections.<String>emptyList(), Collections.<String>emptyList());
+    public SSTableSingleReader(final String filePath, String keyspaceName,
+                               String tableName, Configuration configuration)
+            throws IOException {
+        this(filePath, keyspaceName, tableName, Collections.<String>emptyList(),
+                Collections.<String>emptyList(), configuration);
     }
 
 
@@ -119,8 +128,9 @@ public class SSTableSingleReader {
      */
     public SSTableSingleReader(final String filePath,
                                final List<String> partitionKeyNames,
-                               final List<String> clusteringKeyNames) throws IOException {
-        this(filePath, "", "", partitionKeyNames, clusteringKeyNames);
+                               final List<String> clusteringKeyNames,
+                               Configuration configuration) throws IOException {
+        this(filePath, "", "", partitionKeyNames, clusteringKeyNames, configuration);
     }
 
     /**
@@ -138,9 +148,10 @@ public class SSTableSingleReader {
                                final String keyspaceName,
                                final String tableName,
                                final List<String> partitionKeyNames,
-                               final List<String> clustringKeyNames) throws IOException {
+                               final List<String> clustringKeyNames,
+                               Configuration configuration) throws IOException {
         this.fileLocation = filePath;
-
+        this.conf = configuration;
         initialization(keyspaceName, tableName, partitionKeyNames, clustringKeyNames);
     }
 
@@ -150,7 +161,7 @@ public class SSTableSingleReader {
      * @throws IOException when file location is not valid
      */
     private void initialization(final CFMetaData cfMetaData) throws IOException {
-        descriptor = Descriptor.fromFilename(HadoopFileUtils.normalizeFileName(fileLocation));
+        descriptor = Descriptor.fromFilename(HadoopFileUtils.normalizeFileName(fileLocation), this.conf);
         this.cfMetaData = cfMetaData;
         initHelper();
     }
@@ -167,7 +178,7 @@ public class SSTableSingleReader {
                                 final String tableName,
                                 final List<String> partitionKeyNames,
                                 final List<String> clusteringKeyNames) throws IOException {
-        descriptor = Descriptor.fromFilename(HadoopFileUtils.normalizeFileName(fileLocation));
+        descriptor = Descriptor.fromFilename(HadoopFileUtils.normalizeFileName(fileLocation), conf);
         cfMetaData = SSTableUtils.metadataFromSSTable(descriptor, keyspaceName, tableName, partitionKeyNames, clusteringKeyNames);
         initHelper();
     }

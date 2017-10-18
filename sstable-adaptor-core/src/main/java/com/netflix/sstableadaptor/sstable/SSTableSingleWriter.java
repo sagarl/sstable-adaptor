@@ -11,6 +11,7 @@ import org.apache.cassandra.io.sstable.SSTableTxnWriter;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
 import org.apache.cassandra.io.sstable.format.big.BigFormat;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,11 +27,14 @@ public class SSTableSingleWriter<T extends UnfilteredRowIterator> {
     private CFMetaData origCFMetaData;
     private CassandraTable cassTable;
     private String outLocation;
+    private Configuration conf;
 
-    public SSTableSingleWriter(CFMetaData origCFMetaData, CassandraTable cassTable, String outLocation) {
+    public SSTableSingleWriter(CFMetaData origCFMetaData, CassandraTable cassTable,
+                               String outLocation, Configuration conf) {
         this.origCFMetaData = origCFMetaData;
         this.cassTable = cassTable;
         this.outLocation = outLocation;
+        this.conf = conf;
     }
 
     public List<String> write(Iterator<T> data) throws IOException {
@@ -45,7 +49,8 @@ public class SSTableSingleWriter<T extends UnfilteredRowIterator> {
                     cassTable.getKeyspaceName(),
                     cassTable.getTableName(),
                     generation++,
-                    SSTableFormat.Type.BIG);
+                    SSTableFormat.Type.BIG,
+                    conf);
 
             SerializationHeader header = new SerializationHeader(true,
                     outputCFMetaData,

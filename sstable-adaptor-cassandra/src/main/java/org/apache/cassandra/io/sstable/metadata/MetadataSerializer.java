@@ -77,13 +77,13 @@ public class MetadataSerializer implements IMetadataSerializer
         }
     }
 
-    public Map<MetadataType, MetadataComponent> deserialize( Descriptor descriptor, EnumSet<MetadataType> types) throws IOException
+    public Map<MetadataType, MetadataComponent> deserialize(Descriptor descriptor, EnumSet<MetadataType> types) throws IOException
     {
         Map<MetadataType, MetadataComponent> components;
         logger.trace("Load metadata for {}", descriptor);
         String statsFile = descriptor.filenameFor(Component.STATS);
 
-        if (!HadoopFileUtils.exists(statsFile))
+        if (!HadoopFileUtils.exists(statsFile, descriptor.getConfiguration()))
         {
             logger.trace("No sstable stats for {}", descriptor);
             components = Maps.newHashMap();
@@ -91,7 +91,7 @@ public class MetadataSerializer implements IMetadataSerializer
         }
         else
         {
-            try (RandomAccessReader r = RandomAccessReader.open(statsFile))
+            try (RandomAccessReader r = RandomAccessReader.open(statsFile, descriptor.getConfiguration()))
             {
                 components = deserialize(descriptor, r, types);
             }

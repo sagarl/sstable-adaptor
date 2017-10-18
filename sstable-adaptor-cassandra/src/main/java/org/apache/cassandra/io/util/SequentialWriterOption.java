@@ -18,10 +18,10 @@
 
 package org.apache.cassandra.io.util;
 
+import org.apache.cassandra.io.compress.BufferType;
+
 import java.nio.ByteBuffer;
 import java.util.Objects;
-
-import org.apache.cassandra.io.compress.BufferType;
 
 /**
  * SequentialWriter option
@@ -111,6 +111,7 @@ public class SequentialWriterOption
         /* default tricle fsync byte interval: 10MB */
         private int trickleFsyncByteInterval = 10 * 1024 * 1024;
         private boolean finishOnClose = false;
+
 
         /* construct throguh SequentialWriteOption.newBuilder */
         private Builder() {}

@@ -46,7 +46,6 @@ public class ChannelProxy extends SharedCloseableImpl
 {
     private static final Logger logger = LoggerFactory.getLogger(ChannelProxy.class);
 
-    public static Configuration CONF = HadoopFileUtils.CONF;
     private static int DEFAULT_BUFFER_SIZE = HadoopFileUtils.DEFAULT_BUFFER_SIZE;
 
     private Path filePath;
@@ -56,8 +55,10 @@ public class ChannelProxy extends SharedCloseableImpl
     private boolean isExists = false;
     private int bufferSize = 0;
     private Cleanup cleanup = null;
+    private Configuration conf;
 
-    public ChannelProxy(Cleanup cleanup, FileSystem fs, FSDataInputStream inputStream, Path path, int bufferSize)
+    public ChannelProxy(Cleanup cleanup, FileSystem fs, FSDataInputStream inputStream,
+                        Path path, int bufferSize, Configuration conf)
     {
         super(cleanup);
         this.inputStream = inputStream;
@@ -66,26 +67,31 @@ public class ChannelProxy extends SharedCloseableImpl
         this.fs = fs;
         this.fileLength = size();
         this.cleanup = cleanup;
+        this.conf = conf;
     }
 
-    public static ChannelProxy newInstance(String filePath) {
-        return newInstance(filePath, DEFAULT_BUFFER_SIZE);
+    public static ChannelProxy newInstance(String filePath, Configuration conf) {
+        return newInstance(filePath, DEFAULT_BUFFER_SIZE, conf);
     }
 
 
-    public static ChannelProxy newInstance(String filePath, int bufferSize) {
+    public static ChannelProxy newInstance(String filePath, int bufferSize, Configuration conf) {
         filePath = HadoopFileUtils.normalizeFileName(filePath);
 
         try {
             Path path = new Path(filePath);
-            FileSystem fs = path.getFileSystem(CONF);
-            FSDataInputStream inputStream = HadoopFileUtils.buildInputStream(path, bufferSize);
+            FileSystem fs = path.getFileSystem(conf);
+            FSDataInputStream inputStream = HadoopFileUtils.buildInputStream(path, bufferSize, conf);
             Cleanup cleanup = new Cleanup(filePath, inputStream);
-            return new ChannelProxy(cleanup, fs, inputStream, path, bufferSize);
+            return new ChannelProxy(cleanup, fs, inputStream, path, bufferSize, conf);
         } catch (IOException e) {
             logger.error(e.getMessage());
             return null;
         }
+    }
+
+    public Configuration getConf() {
+        return conf;
     }
 
     public void reopenInputStream() {
@@ -105,9 +111,10 @@ public class ChannelProxy extends SharedCloseableImpl
     public ChannelProxy sharedCopy()
     {
         try {
-            FSDataInputStream inputStream = HadoopFileUtils.buildInputStream(this.fs, this.filePath, this.bufferSize);
+            FSDataInputStream inputStream = HadoopFileUtils.buildInputStream(this.fs, this.filePath,
+                                                                             this.bufferSize);
             Cleanup cleanup = new Cleanup(this.filePath(), inputStream);
-            return new ChannelProxy(cleanup, this.fs, inputStream, this.filePath, this.bufferSize);
+            return new ChannelProxy(cleanup, this.fs, inputStream, this.filePath, this.bufferSize, this.conf);
         } catch (IOException e) {
             logger.error(e.getMessage());
             throw new RuntimeException((e.getCause()));

@@ -72,14 +72,12 @@ import org.apache.cassandra.utils.FilterFactory;
 import org.apache.cassandra.utils.IFilter;
 import org.apache.cassandra.utils.Pair;
 import org.apache.cassandra.utils.concurrent.Ref;
-import org.apache.cassandra.utils.concurrent.ScheduledExecutors;
 import org.apache.cassandra.utils.concurrent.SelfRefCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
@@ -367,13 +365,18 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
     {
         // Minimum components without which we can't do anything
         assert components.contains(Component.DATA) : "Data component is missing for sstable " + descriptor;
-        assert !validate || components.contains(Component.PRIMARY_INDEX) : "Primary index component is missing for sstable " + descriptor;
+        assert !validate || components.contains(Component.PRIMARY_INDEX) : "Primary index component is missing for " +
+                "sstable " + descriptor;
 
-        // For the 3.0+ sstable format, the (misnomed) stats component hold the serialization header which we need to deserialize the sstable content
-        assert !descriptor.version.storeRows() || components.contains(Component.STATS) : "Stats component is missing for sstable " + descriptor;
+
+        // For the 3.0+ sstable format, the (misnomed) stats component hold the serialization header which we need to
+        // deserialize the sstable content
+        assert !descriptor.version.storeRows() || components.contains(Component.STATS) : "Stats component is missing " +
+                "for sstable " + descriptor;
 
         EnumSet<MetadataType> types = EnumSet.of(MetadataType.VALIDATION, MetadataType.STATS, MetadataType.HEADER);
-        Map<MetadataType, MetadataComponent> sstableMetadata = descriptor.getMetadataSerializer().deserialize(descriptor, types);
+        Map<MetadataType, MetadataComponent> sstableMetadata = descriptor.getMetadataSerializer()
+                                                                         .deserialize(descriptor, types);
         ValidationMetadata validationMetadata = (ValidationMetadata) sstableMetadata.get(MetadataType.VALIDATION);
         StatsMetadata statsMetadata = (StatsMetadata) sstableMetadata.get(MetadataType.STATS);
         SerializationHeader.Component header = (SerializationHeader.Component) sstableMetadata.get(MetadataType.HEADER);
@@ -385,7 +388,9 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         String partitionerName = metadata.partitioner.getClass().getCanonicalName();
         if (validationMetadata != null && !partitionerName.equals(validationMetadata.partitioner))
         {
-            logger.error("Cannot open {}; partitioner {} does not match system partitioner {}.  Note that the default partitioner starting with Cassandra 1.2 is Murmur3Partitioner, so you will need to edit that to match your old partitioner if upgrading.",
+            logger.error("Cannot open {}; partitioner {} does not match system partitioner {}.  Note that the " +
+                            "default partitioner starting with Cassandra 1.2 is Murmur3Partitioner, so you will " +
+                            "need to edit that to match your old partitioner if upgrading.",
                          descriptor, validationMetadata.partitioner, partitionerName);
             throw new IOException("Cannot open " + descriptor + "; partitioner " + validationMetadata.partitioner +
                                   " does not match system partitioner " + partitionerName +
@@ -393,7 +398,8 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                                   " so you will need to edit that to match your old partitioner if upgrading.");
         }
 
-        long fileLength = HadoopFileUtils.fileSize(descriptor.filenameFor(Component.DATA));
+        long fileLength = HadoopFileUtils.fileSize(descriptor.filenameFor(Component.DATA),
+                                                   descriptor.getConfiguration());
         logger.info("Opening {} {})",
                          descriptor.filenameFor(Component.DATA),
                          FBUtilities.prettyPrintMemory(fileLength));
@@ -410,7 +416,8 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
             // load index and filter
             long start = System.nanoTime();
             sstable.load(validationMetadata);
-            logger.info("INDEX LOAD TIME for {}: {} ms.", descriptor, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+            logger.info("INDEX LOAD TIME for {}: {} ms.", descriptor,
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 
             sstable.setup(trackHotness);
             if (validate)
@@ -542,19 +549,26 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                 builtSummary = true;
             }
 
-            int dataBufferSize = optimizationStrategy.bufferSize(sstableMetadata.estimatedPartitionSize.percentile(DatabaseDescriptor.getDiskOptimizationEstimatePercentile()));
+            int dataBufferSize = optimizationStrategy.bufferSize(sstableMetadata.estimatedPartitionSize
+                                                     .percentile(DatabaseDescriptor
+                                                                 .getDiskOptimizationEstimatePercentile()));
             logger.info("dataBufferSize: " + dataBufferSize);
             logger.info("components: " + components);
             if (components.contains(Component.PRIMARY_INDEX))
             {
                 logger.info("loading ifile");
-                long indexFileLength = HadoopFileUtils.fileSize(descriptor.filenameFor(Component.PRIMARY_INDEX));
+                long indexFileLength = HadoopFileUtils.fileSize(descriptor.filenameFor(Component.PRIMARY_INDEX),
+                                                                descriptor.getConfiguration());
                 int indexBufferSize = optimizationStrategy.bufferSize(indexFileLength / indexSummary.size());
-                ifile = ibuilder.bufferSize(indexBufferSize).complete();
+                ifile = ibuilder.bufferSize(indexBufferSize)
+                                .withConfiguration(descriptor.getConfiguration())
+                                 .complete();
                 //ifile = ibuilder.withOptimizationStrategy(optimizationStrategy).withIndexSummarySize(indexSummary.size()).complete();
             }
 
-            dfile = dbuilder.bufferSize(dataBufferSize).complete();
+            dfile = dbuilder.bufferSize(dataBufferSize)
+                            .withConfiguration(descriptor.getConfiguration())
+                            .complete();
 
             if (saveSummaryIfCreated && builtSummary)
                 saveSummary();
@@ -596,7 +610,8 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
              return;
 
         // we read the positions in a BRAF so we don't have to worry about an entry spanning a mmap boundary.
-        try (RandomAccessReader primaryIndex = RandomAccessReader.open(descriptor.filenameFor(Component.PRIMARY_INDEX)))
+        try (RandomAccessReader primaryIndex = RandomAccessReader.open(descriptor.filenameFor(Component.PRIMARY_INDEX),
+                                                                       descriptor.getConfiguration()))
         {
             long indexSize = primaryIndex.length();
             long histogramCount = sstableMetadata.estimatedPartitionSize.count();
@@ -653,7 +668,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         //TODO: Minh fix this!
         String indexSummaryFilename = descriptor.filenameFor(Component.SUMMARY);
 
-        ChannelProxy proxy = ChannelProxy.newInstance(indexSummaryFilename);
+        ChannelProxy proxy = ChannelProxy.newInstance(indexSummaryFilename, descriptor.getConfiguration());
         DataInputStream iStream = null;
         try {
 
@@ -713,7 +728,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         String filePath = descriptor.filenameFor(Component.SUMMARY);
 
         //TODO: add a retry here on deletion
-        HadoopFileUtils.deleteIfExists(filePath);
+        HadoopFileUtils.deleteIfExists(filePath, descriptor.getConfiguration());
 
 
         //TODO: will make the retry nicer
@@ -724,7 +739,8 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
             if (attempt > 0)
                 FBUtilities.sleepQuietly((int) Math.round(Math.pow(2, attempt)) * 1000);
 
-            try (HadoopFileUtils.HadoopFileChannel hos = HadoopFileUtils.newFilesystemChannel(filePath);
+            try (HadoopFileUtils.HadoopFileChannel hos = HadoopFileUtils.newFilesystemChannel(filePath,
+                                                                                      descriptor.getConfiguration());
                  DataOutputStreamPlus oStream = new BufferedDataOutputStreamPlus(hos)) {
                 IndexSummary.serializer.serialize(summary, oStream, descriptor.version.hasSamplingLevel());
                 if (first != null && last != null) {
@@ -736,7 +752,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                 logger.trace("Cannot save SSTable Summary: ", e);
 
                 // corrupted hence delete it and let it load it now.
-                HadoopFileUtils.deleteIfExists(filePath);
+                HadoopFileUtils.deleteIfExists(filePath, descriptor.getConfiguration());
                 attempt++;
                 if (attempt == maxAttempt) //TODO: do we need to record all retried excpetions here or assume they'r same
                     throw new RuntimeException("Have retried for " + maxAttempt + " times but still failed!", e);

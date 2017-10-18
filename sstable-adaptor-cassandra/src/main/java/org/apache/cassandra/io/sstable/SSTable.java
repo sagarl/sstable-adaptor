@@ -33,6 +33,7 @@ import org.apache.cassandra.io.util.HadoopFileUtils;
 import org.apache.cassandra.io.util.RandomAccessReader;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.memory.HeapAllocator;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -250,7 +251,7 @@ public abstract class SSTable
         try
         {
             for (Component component : components) {
-                bytes += HadoopFileUtils.fileSize(descriptor.filenameFor(component));
+                bytes += HadoopFileUtils.fileSize(descriptor.filenameFor(component), descriptor.getConfiguration());
             }
         }
         catch (IOException e)
@@ -269,8 +270,8 @@ public abstract class SSTable
                ')';
     }
 
-    private static List<String> readLines(String filename) throws IOException {
-        return HadoopFileUtils.readLines(filename);
+    private static List<String> readLines(String filename, Configuration conf) throws IOException {
+        return HadoopFileUtils.readLines(filename, conf);
     }
 
     /**
@@ -279,13 +280,13 @@ public abstract class SSTable
      */
     protected static Set<Component> readTOC(Descriptor descriptor) throws IOException
     {
-        List<String> componentNames = readLines(descriptor.filenameFor(Component.TOC));
+        List<String> componentNames = readLines(descriptor.filenameFor(Component.TOC), descriptor.getConfiguration());
         Set<Component> components = Sets.newHashSetWithExpectedSize(componentNames.size());
         for (String componentName : componentNames)
         {
             logger.info("Checking for the existence of [" + componentName + "]");
             Component component = new Component(Component.Type.fromRepresentation(componentName), componentName);
-            if (!HadoopFileUtils.exists(descriptor.filenameFor(component)))
+            if (!HadoopFileUtils.exists(descriptor.filenameFor(component), descriptor.getConfiguration()))
                 logger.error("Missing component: {}", descriptor.filenameFor(component));
             else
                 components.add(component);
@@ -302,7 +303,8 @@ public abstract class SSTable
         String tocFile = descriptor.filenameFor(Component.TOC);
 
         try (BufferedWriter bufferedWriter = HadoopFileUtils.newBufferedWriter(descriptor.filenameFor(Component.TOC),
-                                                                               Charsets.UTF_8))
+                                                                               Charsets.UTF_8,
+                                                                               descriptor.getConfiguration()))
         {
             for (Component component : components)
                 bufferedWriter.write(component.name + "\n");

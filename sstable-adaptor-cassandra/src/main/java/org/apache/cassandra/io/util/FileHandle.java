@@ -19,11 +19,13 @@ package org.apache.cassandra.io.util;
 
 import com.google.common.util.concurrent.RateLimiter;
 import org.apache.cassandra.cache.ChunkCache;
+import org.apache.cassandra.config.Config;
 import org.apache.cassandra.io.compress.BufferType;
 import org.apache.cassandra.io.compress.CompressionMetadata;
 import org.apache.cassandra.utils.concurrent.Ref;
 import org.apache.cassandra.utils.concurrent.RefCounted;
 import org.apache.cassandra.utils.concurrent.SharedCloseableImpl;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,17 +64,21 @@ public class FileHandle extends SharedCloseableImpl
      */
     private final Optional<CompressionMetadata> compressionMetadata;
 
+    private final Configuration conf;
+
     private FileHandle(Cleanup cleanup,
                        ChannelProxy channel,
                        RebuffererFactory rebuffererFactory,
                        CompressionMetadata compressionMetadata,
-                       long onDiskLength)
+                       long onDiskLength,
+                       Configuration configuration)
     {
         super(cleanup);
         this.rebuffererFactory = rebuffererFactory;
         this.channel = channel;
         this.compressionMetadata = Optional.ofNullable(compressionMetadata);
         this.onDiskLength = onDiskLength;
+        this.conf = configuration;
     }
 
     private FileHandle(FileHandle copy)
@@ -82,6 +88,7 @@ public class FileHandle extends SharedCloseableImpl
         rebuffererFactory = copy.rebuffererFactory;
         compressionMetadata = copy.compressionMetadata;
         onDiskLength = copy.onDiskLength;
+        this.conf = copy.conf;
     }
 
     /**
@@ -139,7 +146,7 @@ public class FileHandle extends SharedCloseableImpl
      */
     public RandomAccessReader createReader(RateLimiter limiter)
     {
-        return new RandomAccessReader(instantiateRebufferer(limiter));
+        return new RandomAccessReader(instantiateRebufferer(limiter), this.conf);
     }
 
     public FileDataInput createReader(long position)
@@ -223,6 +230,7 @@ public class FileHandle extends SharedCloseableImpl
         private BufferType bufferType = BufferType.ON_HEAP;
         private DiskOptimizationStrategy optimizationStrategy;
         private int indexSummarySize;
+        private Configuration conf;
 
         private boolean compressed = false;
 
@@ -310,6 +318,15 @@ public class FileHandle extends SharedCloseableImpl
         }
 
         /**
+         *
+         */
+        public Builder withConfiguration(Configuration conf)
+        {
+            this.conf = conf;
+            return this;
+        }
+
+        /**
          * Complete building {@link FileHandle} without overriding file length.
          *
          * @see #complete(long)
@@ -329,11 +346,13 @@ public class FileHandle extends SharedCloseableImpl
         @SuppressWarnings("resource")
         public FileHandle complete(long overrideLength)
         {
-            ChannelProxy channelCopy = ChannelProxy.newInstance(path);
+            ChannelProxy channelCopy = ChannelProxy.newInstance(path, this.conf);
             try
             {
                 if (compressed && compressionMetadata == null)
-                    compressionMetadata = CompressionMetadata.create(channelCopy.filePath(), channelCopy.size());
+                    compressionMetadata = CompressionMetadata.create(channelCopy.filePath(),
+                                                                    channelCopy.size(),
+                                                                    this.conf);
 
                 long length = overrideLength > 0 ? overrideLength : compressed ? compressionMetadata.compressedFileLength : channelCopy.size();
 
@@ -349,7 +368,7 @@ public class FileHandle extends SharedCloseableImpl
                 }
 
                 Cleanup cleanup = new Cleanup(channelCopy, rebuffererFactory, compressionMetadata, chunkCache);
-                return new FileHandle(cleanup, channelCopy, rebuffererFactory, compressionMetadata, length);
+                return new FileHandle(cleanup, channelCopy, rebuffererFactory, compressionMetadata, length, conf);
             }
             catch (Throwable t)
             {

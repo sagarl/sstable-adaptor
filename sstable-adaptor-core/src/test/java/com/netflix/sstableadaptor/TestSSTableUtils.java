@@ -22,6 +22,7 @@ import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.CompositeType;
+
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -68,7 +69,8 @@ public class TestSSTableUtils extends TestBaseSSTableFunSuite {
         final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "compressed_bills/mc-2-big-Data.db";
 
         final SSTableSingleReader SSTableSingleReader =
-                                new SSTableSingleReader(inputSSTableFullPathFileName);
+                                new SSTableSingleReader(inputSSTableFullPathFileName,
+                                                        TestBaseSSTableFunSuite.HADOOP_CONF);
 
         final CFMetaData cfMetaData = SSTableSingleReader.getCfMetaData();
         final String user = "user2";

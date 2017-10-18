@@ -28,16 +28,19 @@ import javax.annotation.Nonnull;
 import com.google.common.base.Charsets;
 
 import org.apache.cassandra.io.FSWriteError;
+import org.apache.hadoop.conf.Configuration;
 
 public class ChecksumWriter
 {
     private final CRC32 incrementalChecksum = new CRC32();
     private final DataOutput incrementalOut;
     private final CRC32 fullChecksum = new CRC32();
+    private final Configuration conf;
 
-    public ChecksumWriter(DataOutput incrementalOut)
+    public ChecksumWriter(DataOutput incrementalOut, Configuration configuration)
     {
         this.incrementalOut = incrementalOut;
+        this.conf = configuration;
     }
 
     public void writeChunkSize(int length)
@@ -90,7 +93,7 @@ public class ChecksumWriter
 
     public void writeFullChecksum(@Nonnull String digestFile)
     {
-        try (BufferedWriter out = HadoopFileUtils.newBufferedWriter(digestFile, Charsets.UTF_8))
+        try (BufferedWriter out = HadoopFileUtils.newBufferedWriter(digestFile, Charsets.UTF_8, conf))
         {
             out.write(String.valueOf(fullChecksum.getValue()));
         }

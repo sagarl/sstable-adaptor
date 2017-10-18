@@ -19,8 +19,13 @@ package org.apache.cassandra.io.compress;
 
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.sstable.metadata.MetadataCollector;
-import org.apache.cassandra.io.util.*;
+import org.apache.cassandra.io.util.ChecksumWriter;
+import org.apache.cassandra.io.util.DataPosition;
+import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.io.util.SequentialWriter;
+import org.apache.cassandra.io.util.SequentialWriterOption;
 import org.apache.cassandra.schema.CompressionParams;
+import org.apache.hadoop.conf.Configuration;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -70,15 +75,18 @@ public class CompressedSequentialWriter extends SequentialWriter
                                       String digestFile,
                                       SequentialWriterOption option,
                                       CompressionParams parameters,
-                                      MetadataCollector sstableMetadataCollector)
+                                      MetadataCollector sstableMetadataCollector,
+                                      Configuration conf)
     {
-        super(file, SequentialWriterOption.newBuilder()
+        super(file,
+                SequentialWriterOption.newBuilder()
                             .bufferSize(option.bufferSize())
                             .bufferType(option.bufferType())
                             .bufferSize(parameters.chunkLength())
                             .bufferType(parameters.getSstableCompressor().preferredBufferType())
                             .finishOnClose(option.finishOnClose())
-                            .build());
+                            .build(),
+                conf);
         this.compressor = parameters.getSstableCompressor();
         this.digestFile = Optional.ofNullable(digestFile);
 
@@ -86,10 +94,10 @@ public class CompressedSequentialWriter extends SequentialWriter
         compressed = compressor.preferredBufferType().allocate(compressor.initialCompressedBufferLength(buffer.capacity()));
 
         /* Index File (-CompressionInfo.db component) and it's header */
-        metadataWriter = CompressionMetadata.Writer.open(parameters, offsetsPath);
+        metadataWriter = CompressionMetadata.Writer.open(parameters, offsetsPath, conf);
 
         this.sstableMetadataCollector = sstableMetadataCollector;
-        crcMetadata = new ChecksumWriter(new DataOutputStream(Channels.newOutputStream(channel)));
+        crcMetadata = new ChecksumWriter(new DataOutputStream(Channels.newOutputStream(channel)), conf);
     }
 
     @Override

@@ -61,7 +61,6 @@ import org.apache.cassandra.utils.concurrent.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
@@ -101,20 +100,24 @@ public class BigTableWriter extends SSTableWriter
                                              descriptor.filenameFor(descriptor.digestComponent),
                                              writerOption,
                                              metadata.params.compression,
-                                             metadataCollector);
+                                             metadataCollector, descriptor.getConfiguration());
         }
         else
         {
             dataFile = new ChecksummedSequentialWriter(getFilename(),
                     descriptor.filenameFor(Component.CRC),
                     descriptor.filenameFor(descriptor.digestComponent),
-                    writerOption);
+                    writerOption,
+                    descriptor.getConfiguration());
         }
-        dbuilder = new FileHandle.Builder(descriptor.filenameFor(Component.DATA)).compressed(compression);
+        dbuilder = new FileHandle.Builder(descriptor.filenameFor(Component.DATA))
+                                 .withConfiguration(descriptor.getConfiguration())
+                                 .compressed(compression);
         //chunkCache.ifPresent(dbuilder::withChunkCache);
         iwriter = new IndexWriter(keyCount);
 
-        columnIndexWriter = new ColumnIndex(this.header, dataFile, descriptor.version, this.observers, getRowIndexEntrySerializer().indexInfoSerializer());
+        columnIndexWriter = new ColumnIndex(this.header, dataFile, descriptor.version, this.observers,
+                                            getRowIndexEntrySerializer().indexInfoSerializer());
     }
 
     public void mark()
@@ -323,16 +326,14 @@ public class BigTableWriter extends SSTableWriter
 
     private void writeMetadata(Descriptor desc, Map<MetadataType, MetadataComponent> components)
     {
-        File file = new File(desc.filenameFor(Component.STATS));
-        //try (SequentialWriter out = new SequentialWriter(file, writerOption))
-        try (SequentialWriter out = new SequentialWriter(desc.filenameFor(Component.STATS), writerOption))
+        try (SequentialWriter out = new SequentialWriter(desc.filenameFor(Component.STATS), writerOption, desc.getConfiguration()))
         {
             desc.getMetadataSerializer().serialize(components, out, desc.version);
             out.finish();
         }
         catch (IOException e)
         {
-            throw new FSWriteError(e, file.getPath());
+            throw new FSWriteError(e, desc.filenameFor(Component.STATS));
         }
     }
 
@@ -364,12 +365,14 @@ public class BigTableWriter extends SSTableWriter
 
         IndexWriter(long keyCount)
         {
-            //indexFile = new SequentialWriter(new File(descriptor.filenameFor(Component.PRIMARY_INDEX)), writerOption);
-            indexFile = new SequentialWriter(descriptor.filenameFor(Component.PRIMARY_INDEX), writerOption);
-            builder = new FileHandle.Builder(descriptor.filenameFor(Component.PRIMARY_INDEX));
+            indexFile = new SequentialWriter(descriptor.filenameFor(Component.PRIMARY_INDEX),
+                                             writerOption, descriptor.getConfiguration());
+            builder = new FileHandle.Builder(descriptor.filenameFor(Component.PRIMARY_INDEX))
+                                    .withConfiguration(descriptor.getConfiguration());
             //chunkCache.ifPresent(builder::withChunkCache);
             summary = new IndexSummaryBuilder(keyCount, metadata.params.minIndexInterval, Downsampling.BASE_SAMPLING_LEVEL);
-            bf = FilterFactory.getFilter(keyCount, metadata.params.bloomFilterFpChance, true, descriptor.version.hasOldBfHashOrder());
+            bf = FilterFactory.getFilter(keyCount, metadata.params.bloomFilterFpChance, true,
+                                         descriptor.version.hasOldBfHashOrder());
             // register listeners to be alerted when the data files are flushed
             indexFile.setPostFlushListener(() -> summary.markIndexSynced(indexFile.getLastFlushOffset()));
             dataFile.setPostFlushListener(() -> summary.markDataSynced(dataFile.getLastFlushOffset()));
@@ -412,7 +415,8 @@ public class BigTableWriter extends SSTableWriter
             {
                 String path = descriptor.filenameFor(Component.FILTER);
 
-                try (HadoopFileUtils.HadoopFileChannel hos = HadoopFileUtils.newFilesystemChannel(path);
+                try (HadoopFileUtils.HadoopFileChannel hos = HadoopFileUtils.newFilesystemChannel(path,
+                                                                                      descriptor.getConfiguration());
                      DataOutputStreamPlus stream = new BufferedDataOutputStreamPlus(hos))
                 {
                     // bloom filter

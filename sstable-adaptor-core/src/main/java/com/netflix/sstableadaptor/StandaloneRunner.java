@@ -1,7 +1,6 @@
 package com.netflix.sstableadaptor;
 
 
-import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
 import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
@@ -10,12 +9,12 @@ import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.format.SSTableWriter;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 
 public class StandaloneRunner {
 
@@ -25,13 +24,13 @@ public class StandaloneRunner {
     public static void main(String[] args) {
         String inputSSTableFullPathFileName = new File(getInputFile(args)).getAbsolutePath();
         LOGGER.info("Input file name: " + inputSSTableFullPathFileName);
-
-        final Descriptor inputSSTableDescriptor = Descriptor.fromFilename(inputSSTableFullPathFileName);
+        Configuration conf = new Configuration();
+        final Descriptor inputSSTableDescriptor = Descriptor.fromFilename(inputSSTableFullPathFileName, conf);
         SSTableWriter writer = null;
 
         try {
             final CFMetaData inputCFMetaData =
-                    SSTableUtils.metaDataFromSSTable(inputSSTableFullPathFileName);
+                    SSTableUtils.metaDataFromSSTable(inputSSTableFullPathFileName, conf);
             final CFMetaData outputCFMetaData = SSTableUtils.createNewCFMetaData(inputSSTableDescriptor, inputCFMetaData);
 
             final SSTableReader inputSStable = SSTableReader.openNoValidation(inputSSTableDescriptor, inputCFMetaData);

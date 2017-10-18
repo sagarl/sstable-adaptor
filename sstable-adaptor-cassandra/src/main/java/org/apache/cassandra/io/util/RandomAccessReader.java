@@ -17,13 +17,13 @@
  */
 package org.apache.cassandra.io.util;
 
-import java.io.IOException;
-import java.nio.ByteOrder;
-
 import com.google.common.primitives.Ints;
-
 import org.apache.cassandra.io.compress.BufferType;
 import org.apache.cassandra.io.util.Rebufferer.BufferHolder;
+import org.apache.hadoop.conf.Configuration;
+
+import java.io.IOException;
+import java.nio.ByteOrder;
 
 public class RandomAccessReader extends RebufferingInputStream implements FileDataInput
 {
@@ -36,15 +36,17 @@ public class RandomAccessReader extends RebufferingInputStream implements FileDa
     final Rebufferer rebufferer;
     private BufferHolder bufferHolder = Rebufferer.EMPTY;
 
+    private Configuration conf;
     /**
      * Only created through Builder
      *
      * @param rebufferer Rebufferer to use
      */
-    RandomAccessReader(Rebufferer rebufferer)
+    RandomAccessReader(Rebufferer rebufferer, Configuration conf)
     {
         super(Rebufferer.EMPTY.buffer());
         this.rebufferer = rebufferer;
+        this.conf = conf;
     }
 
     /**
@@ -276,9 +278,9 @@ public class RandomAccessReader extends RebufferingInputStream implements FileDa
     // not have a shared channel.
     static class RandomAccessReaderWithOwnChannel extends RandomAccessReader
     {
-        RandomAccessReaderWithOwnChannel(Rebufferer rebufferer)
+        RandomAccessReaderWithOwnChannel(Rebufferer rebufferer, Configuration conf)
         {
-            super(rebufferer);
+            super(rebufferer, conf);
         }
 
         @Override
@@ -309,14 +311,14 @@ public class RandomAccessReader extends RebufferingInputStream implements FileDa
      * @return new RandomAccessReader that owns the channel opened in this method.
      */
     @SuppressWarnings("resource")
-    public static RandomAccessReader open(String file)
+    public static RandomAccessReader open(String file, Configuration conf)
     {
-        ChannelProxy channel =  ChannelProxy.newInstance(file);// //new ChannelProxy(file);
+        ChannelProxy channel =  ChannelProxy.newInstance(file, conf);
         try
         {
             ChunkReader reader = new SimpleChunkReader(channel, -1, BufferType.ON_HEAP, DEFAULT_BUFFER_SIZE);
             Rebufferer rebufferer = reader.instantiateRebufferer();
-            return new RandomAccessReaderWithOwnChannel(rebufferer);
+            return new RandomAccessReaderWithOwnChannel(rebufferer, conf);
         }
         catch (Throwable t)
         {
