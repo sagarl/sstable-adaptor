@@ -24,7 +24,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.compaction.OperationType;
-import org.apache.cassandra.io.sstable.SSTable;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.format.SSTableReader.UniqueIdentifier;
 import org.apache.cassandra.utils.concurrent.Transactional;
@@ -43,27 +42,10 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
-import static com.google.common.base.Functions.compose;
 import static com.google.common.base.Predicates.in;
-import static com.google.common.collect.ImmutableSet.copyOf;
 import static com.google.common.collect.Iterables.concat;
-import static com.google.common.collect.Iterables.getFirst;
 import static com.google.common.collect.Iterables.transform;
-import static java.util.Collections.singleton;
-import static org.apache.cassandra.db.lifecycle.Helpers.abortObsoletion;
-import static org.apache.cassandra.db.lifecycle.Helpers.checkNotReplaced;
-import static org.apache.cassandra.db.lifecycle.Helpers.concatUniq;
-import static org.apache.cassandra.db.lifecycle.Helpers.emptySet;
-import static org.apache.cassandra.db.lifecycle.Helpers.filterIn;
-import static org.apache.cassandra.db.lifecycle.Helpers.filterOut;
-import static org.apache.cassandra.db.lifecycle.Helpers.markObsolete;
-import static org.apache.cassandra.db.lifecycle.Helpers.orIn;
-import static org.apache.cassandra.db.lifecycle.Helpers.prepareForObsoletion;
-import static org.apache.cassandra.db.lifecycle.Helpers.select;
-import static org.apache.cassandra.db.lifecycle.Helpers.selectFirst;
-import static org.apache.cassandra.db.lifecycle.Helpers.setReplaced;
-import static org.apache.cassandra.db.lifecycle.View.updateCompacting;
-import static org.apache.cassandra.db.lifecycle.View.updateLiveSet;
+import static org.apache.cassandra.db.lifecycle.Helpers.*;
 import static org.apache.cassandra.utils.Throwables.maybeFail;
 import static org.apache.cassandra.utils.concurrent.Refs.release;
 import static org.apache.cassandra.utils.concurrent.Refs.selfRefs;
@@ -121,7 +103,6 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
         }
     }
 
-    public final Tracker tracker;
     // The transaction logs keep track of new and old sstable files
     private final LogTransaction log;
     // the original readers this transaction was opened over, and that it guards
@@ -143,44 +124,16 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
     private List<LogTransaction.Obsoletion> obsoletions;
 
     /**
-     * construct a Transaction for use in an offline operation
-     */
-    public static LifecycleTransaction offline(OperationType operationType, SSTableReader reader)
-    {
-        return offline(operationType, singleton(reader));
-    }
-
-    /**
-     * construct a Transaction for use in an offline operation
-     */
-    public static LifecycleTransaction offline(OperationType operationType, Iterable<SSTableReader> readers)
-    {
-        // if offline, for simplicity we just use a dummy tracker
-        Tracker dummy = new Tracker(false);
-        dummy.addInitialSSTables(readers);
-        dummy.apply(updateCompacting(emptySet(), readers));
-        return new LifecycleTransaction(dummy, operationType, readers);
-    }
-
-    /**
      * construct an empty Transaction with no existing readers
      */
     @SuppressWarnings("resource") // log closed during postCleanup
     public static LifecycleTransaction offline(OperationType operationType)
     {
-        Tracker dummy = new Tracker(false);
-        return new LifecycleTransaction(dummy, new LogTransaction(operationType, dummy), Collections.emptyList());
+        return new LifecycleTransaction(new LogTransaction(operationType), Collections.emptyList());
     }
 
-    @SuppressWarnings("resource") // log closed during postCleanup
-    LifecycleTransaction(Tracker tracker, OperationType operationType, Iterable<SSTableReader> readers)
+    LifecycleTransaction(LogTransaction log, Iterable<SSTableReader> readers)
     {
-        this(tracker, new LogTransaction(operationType, tracker), readers);
-    }
-
-    LifecycleTransaction(Tracker tracker, LogTransaction log, Iterable<SSTableReader> readers)
-    {
-        this.tracker = tracker;
         this.log = log;
         for (SSTableReader reader : readers)
         {
@@ -240,7 +193,7 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
         // and notification status for the obsolete and new files
 
         accumulate = markObsolete(obsoletions, accumulate);
-        accumulate = tracker.updateSizeTracking(logged.obsolete, logged.update, accumulate);
+        //accumulate = tracker.updateSizeTracking(logged.obsolete, logged.update, accumulate);
         accumulate = release(selfRefs(logged.obsolete), accumulate);
         //accumulate = tracker.notifySSTablesChanged(originals, logged.update, log.type(), accumulate);
 
@@ -273,7 +226,7 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
         // replace all updated readers with a version restored to its original state
         List<SSTableReader> restored = restoreUpdatedOriginals();
         List<SSTableReader> invalid = Lists.newArrayList(Iterables.concat(logged.update, logged.obsolete));
-        accumulate = tracker.apply(updateLiveSet(logged.update, restored), accumulate);
+        //accumulate = tracker.apply(updateLiveSet(logged.update, restored), accumulate);
         //accumulate = tracker.notifySSTablesChanged(invalid, restored, OperationType.COMPACTION, accumulate);
         // setReplaced immediately preceding versions that have not been obsoleted
         accumulate = setReplaced(logged.update, accumulate);
@@ -292,75 +245,12 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
     protected Throwable doPostCleanup(Throwable accumulate)
     {
         log.close();
-        return unmarkCompacting(marked, accumulate);
-    }
-
-    public boolean isOffline()
-    {
-        return tracker.isDummy();
+        return accumulate;
     }
 
     public void permitRedundantTransitions()
     {
         super.permitRedundantTransitions();
-    }
-
-    /**
-     * call when a consistent batch of changes is ready to be made atomically visible
-     * these will be exposed in the Tracker atomically, or an exception will be thrown; in this case
-     * the transaction should be rolled back
-     */
-    public void checkpoint()
-    {
-        maybeFail(checkpoint(null));
-    }
-    private Throwable checkpoint(Throwable accumulate)
-    {
-        if (logger.isTraceEnabled())
-            logger.trace("Checkpointing staged {}", staged);
-
-        if (staged.isEmpty())
-            return accumulate;
-
-        Set<SSTableReader> toUpdate = toUpdate();
-        Set<SSTableReader> fresh = copyOf(fresh());
-
-        // check the current versions of the readers we're replacing haven't somehow been replaced by someone else
-        checkNotReplaced(filterIn(toUpdate, staged.update));
-
-        // ensure any new readers are in the compacting set, since we aren't done with them yet
-        // and don't want anyone else messing with them
-        // apply atomically along with updating the live set of readers
-        tracker.apply(compose(updateCompacting(emptySet(), fresh),
-                              updateLiveSet(toUpdate, staged.update)));
-
-        // log the staged changes and our newly marked readers
-        marked.addAll(fresh);
-        logged.log(staged);
-
-        // setup our tracker, and mark our prior versions replaced, also releasing our references to them
-        // we do not replace/release obsoleted readers, since we may need to restore them on rollback
-        accumulate = setReplaced(filterOut(toUpdate, staged.obsolete), accumulate);
-        accumulate = release(selfRefs(filterOut(toUpdate, staged.obsolete)), accumulate);
-
-        staged.clear();
-        return accumulate;
-    }
-
-    /**
-     * return the readers we're replacing in checkpoint(), i.e. the currently visible version of those in staged
-     */
-    private Set<SSTableReader> toUpdate()
-    {
-        return copyOf(filterIn(current(), staged.obsolete, staged.update));
-    }
-
-    /**
-     * new readers that haven't appeared previously (either in the original set or the logged updates)
-     */
-    private Iterable<SSTableReader> fresh()
-    {
-        return filterOut(staged.update, originals, logged.update);
     }
 
     /**
@@ -382,22 +272,6 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
         return ImmutableList.copyOf(transform(torestore, (reader) -> current(reader).cloneWithRestoredStart(reader.first)));
     }
 
-    /**
-     * the set of readers guarded by this transaction _in their original instance/state_
-     * call current(SSTableReader) on any reader in this set to get the latest instance
-     */
-    public Set<SSTableReader> originals()
-    {
-        return Collections.unmodifiableSet(originals);
-    }
-
-    /**
-     * indicates if the reader has been marked for obsoletion
-     */
-    public boolean isObsolete(SSTableReader reader)
-    {
-        return logged.obsolete.contains(reader) || staged.obsolete.contains(reader);
-    }
 
     /**
      * return the current version of the provided reader, whether or not it is visible or staged;
@@ -427,7 +301,7 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
         originals.remove(cancel);
         marked.remove(cancel);
         identities.remove(cancel.instanceId);
-        maybeFail(unmarkCompacting(singleton(cancel), null));
+        //maybeFail(unmarkCompacting(singleton(cancel), null));
     }
 
     /**
@@ -439,25 +313,6 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
             cancel(cancel);
     }
 
-    /**
-     * remove the provided readers from this Transaction, and return a new Transaction to manage them
-     * only permitted to be called if the current Transaction has never been used
-     */
-    public LifecycleTransaction split(Collection<SSTableReader> readers)
-    {
-        logger.trace("Splitting {} into new transaction", readers);
-        checkUnused();
-        for (SSTableReader reader : readers)
-            assert identities.contains(reader.instanceId) : "may only split the same reader instance the transaction was opened with: " + reader;
-
-        for (SSTableReader reader : readers)
-        {
-            identities.remove(reader.instanceId);
-            originals.remove(reader);
-            marked.remove(reader);
-        }
-        return new LifecycleTransaction(tracker, log.type(), readers);
-    }
 
     /**
      * check this transaction has never been used
@@ -469,29 +324,6 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
         assert identities.size() == originals.size();
         assert originals.size() == marked.size();
     }
-
-    private Throwable unmarkCompacting(Set<SSTableReader> unmark, Throwable accumulate)
-    {
-        accumulate = tracker.apply(updateCompacting(unmark, emptySet()), accumulate);
-        // when the CFS is invalidated, it will call unreferenceSSTables().  However, unreferenceSSTables only deals
-        // with sstables that aren't currently being compacted.  If there are ongoing compactions that finish or are
-        // interrupted after the CFS is invalidated, those sstables need to be unreferenced as well, so we do that here.
-        accumulate = tracker.dropSSTablesIfInvalid(accumulate);
-        return accumulate;
-    }
-
-    // convenience method for callers that know only one sstable is involved in the transaction
-    public SSTableReader onlyOne()
-    {
-        assert originals.size() == 1;
-        return getFirst(originals, null);
-    }
-
-    public void untrackNew(SSTable table)
-    {
-        //log.untrackNew(table);
-    }
-
 
     /**
      * Get the files in the folder specified, provided that the filter returns true.

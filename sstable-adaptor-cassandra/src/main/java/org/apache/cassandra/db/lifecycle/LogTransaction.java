@@ -96,7 +96,6 @@ class LogTransaction extends Transactional.AbstractTransactional implements Tran
         }
     }
 
-    private final Tracker tracker;
     private final LogFile txnFile;
     private final Ref<LogTransaction> selfRef;
     // Deleting sstables is tricky because the mmapping might not have been finalized yet,
@@ -107,12 +106,6 @@ class LogTransaction extends Transactional.AbstractTransactional implements Tran
 
     LogTransaction(OperationType opType)
     {
-        this(opType, null);
-    }
-
-    LogTransaction(OperationType opType, Tracker tracker)
-    {
-        this.tracker = tracker;
         this.txnFile = new LogFile(opType, UUIDGen.getTimeUUID());
         this.selfRef = new Ref<>(this, new TransactionTidier(txnFile));
 
@@ -241,7 +234,6 @@ class LogTransaction extends Transactional.AbstractTransactional implements Tran
         // must not retain a reference to the SSTableReader, else leak detection cannot kick in
         private final Descriptor desc;
         private final long sizeOnDisk;
-        private final Tracker tracker;
         private final boolean wasNew;
         private final Ref<LogTransaction> parentRef;
 
@@ -249,7 +241,6 @@ class LogTransaction extends Transactional.AbstractTransactional implements Tran
         {
             this.desc = referent.descriptor;
             this.sizeOnDisk = referent.bytesOnDisk();
-            this.tracker = parent.tracker;
             this.wasNew = wasNew;
             this.parentRef = parent.selfRef.tryRef();
         }
@@ -257,8 +248,8 @@ class LogTransaction extends Transactional.AbstractTransactional implements Tran
         public void run()
         {
             logger.info("SSTableTidier is running..");
-            if (tracker != null && !tracker.isDummy())
-                SystemKeyspace.clearSSTableReadMeter(desc.ksname, desc.cfname, desc.generation);
+            //if (tracker != null && !tracker.isDummy())
+            //    SystemKeyspace.clearSSTableReadMeter(desc.ksname, desc.cfname, desc.generation);
 
             try
             {
