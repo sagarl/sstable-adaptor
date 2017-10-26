@@ -72,7 +72,7 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
 
 
         final String inputSSTableFullPathFileName = CASS21_DATA_DIR +
-                        "compressed_bills-03c5a7b0643c11e7936273d8df3aeac7/casspactor2-compressed_bills-ka-1-Data.db";
+                        "keyspace1/compressed_bills-03c5a7b0643c11e7936273d8df3aeac7/casspactor2-compressed_bills-ka-1-Data.db";
 
         final int counter = getRowCount(inputSSTableFullPathFileName, cql, false);
 
@@ -94,7 +94,7 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
                 "    AND compression = {'chunk_length_in_kb': '64', " +
                 "                       'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}";
 
-        final String inputSSTableFullPathFileName = CASS21_DATA_DIR +
+        final String inputSSTableFullPathFileName = CASS21_DATA_DIR + "keyspace1/" +
                             "viewing_history-04d2b570643d11e7936273d8df3aeac7/casspactor2-viewing_history-ka-1-Data.db";
 
         final int counter = getRowCount(inputSSTableFullPathFileName, cql, false);
@@ -122,7 +122,7 @@ public class TestReadingSSTable21 extends TestBaseSSTableFunSuite {
                 "    AND compression = {'chunk_length_in_kb': '64', " +
                 "                       'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}";
 
-        final String inputSSTableFullPathFileName = CASS21_DATA_DIR +
+        final String inputSSTableFullPathFileName = CASS21_DATA_DIR + "keyspace1/" +
                                        "user_profiles-b355bee0669911e7a49e993faaf28cc4/abc-user_profiles-ka-1-Data.db";
 
         final int counter = getRowCount(inputSSTableFullPathFileName, cql, true);

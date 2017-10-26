@@ -79,7 +79,7 @@ public class SSTableSingleReader {
      *  @throws IOException when file location is not valid
      */
     public SSTableSingleReader(final String filePath, Configuration configuration) throws IOException {
-        this(filePath, Collections.<String>emptyList(), Collections.<String>emptyList(), configuration);
+        this(filePath, Collections.emptyList(), Collections.emptyList(), configuration);
     }
 
     public SSTableSingleReader(final String filePath, CFMetaData cfMetaData, Configuration configuration)

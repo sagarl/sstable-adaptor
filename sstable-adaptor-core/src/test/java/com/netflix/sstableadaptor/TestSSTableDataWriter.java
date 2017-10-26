@@ -123,7 +123,7 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
      *******************************************************/
     @Test
     public void testWritingToLocalSSTable() {
-        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "keyspace1/bills_compress/mc-6-big-Data.db";
         LOGGER.info("Input file name: " + inputSSTableFullPathFileName);
 
         final Descriptor inputSSTableDescriptor = Descriptor.fromFilename(inputSSTableFullPathFileName,
@@ -161,7 +161,7 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testCreatingSSTableWithTnx() throws IOException {
-        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "keyspace1/bills_compress/mc-6-big-Data.db";
 
         final Descriptor descriptor = Descriptor.fromFilename(inputSSTableFullPathFileName,
                                                               TestBaseSSTableFunSuite.HADOOP_CONF);
@@ -267,7 +267,7 @@ public class TestSSTableDataWriter extends TestBaseSSTableFunSuite {
 
     @Test
     public void testConvertingSSTable() throws IOException {
-        final String inputFile = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
+        final String inputFile = CASS3_DATA_DIR + "keyspace1/bills_compress/mc-6-big-Data.db";
         final CFMetaData inputCFMetaData = SSTableUtils.metaDataFromSSTable(inputFile,
                                                                             TestBaseSSTableFunSuite.HADOOP_CONF);
         final CassandraTable cassandraTable = new CassandraTable.CassandraTableBuilder()

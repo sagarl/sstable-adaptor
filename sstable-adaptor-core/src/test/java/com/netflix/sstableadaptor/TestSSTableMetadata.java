@@ -84,7 +84,7 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testAccessSSTableMetadataCase1() throws IOException {
-        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "keyspace1/bills_compress/mc-6-big-Data.db";
         final SSTableSingleReader SSTableSingleReader =
                    new SSTableSingleReader(inputSSTableFullPathFileName, TestBaseSSTableFunSuite.HADOOP_CONF);
 
@@ -230,7 +230,7 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testAccessSSTableMetadataCase2() throws IOException {
-        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "compressed_bills/mc-2-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "keyspace1/compressed_bills/mc-2-big-Data.db";
         final Configuration conf = new Configuration();
         final SSTableSingleReader SSTableSingleReader =
             new SSTableSingleReader(inputSSTableFullPathFileName, conf);
@@ -359,7 +359,7 @@ public class TestSSTableMetadata extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testConstructingKeyspaceAndTable() {
-        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "compressed_bills/mc-2-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "keyspace1/compressed_bills/mc-2-big-Data.db";
 
         try {
             final Configuration conf = new Configuration();

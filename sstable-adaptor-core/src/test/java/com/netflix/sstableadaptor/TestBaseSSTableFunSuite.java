@@ -16,11 +16,14 @@
 
 package com.netflix.sstableadaptor;
 
+import com.netflix.sstableadaptor.sstable.SSTableIterator;
+import com.netflix.sstableadaptor.sstable.SSTableSingleReader;
 import com.netflix.sstableadaptor.util.SSTableUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.rows.Cell;
 import org.apache.cassandra.db.rows.Row;
 import org.apache.cassandra.db.rows.RowIterator;
+import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
@@ -28,7 +31,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -40,9 +45,9 @@ public class TestBaseSSTableFunSuite {
 
     /** Base directory location. */
     public static String CASS3_DATA_DIR = System.getProperty("user.dir") + File.separator +
-                             "src/test/resources/data/cass3/keyspace1/";
+                             "src/test/resources/data/cass3/";
     public static String CASS21_DATA_DIR = System.getProperty("user.dir") + File.separator +
-                             "src/test/resources/data/cass2.1/keyspace1/";
+                             "src/test/resources/data/cass2.1/";
 
     /** S3 location to contain the input sstable files */
     public static final String S3_INPUT_DIR = System.getenv("S3_INPUT_DIR");
@@ -74,14 +79,14 @@ public class TestBaseSSTableFunSuite {
 
         if (System.getProperty("user.dir").endsWith("sstable-adaptor-core")) {
             CASS3_DATA_DIR = System.getProperty("user.dir") + File.separator +
-                             "src/test/resources/data/cass3/keyspace1/";
+                             "src/test/resources/data/cass3/";
             CASS21_DATA_DIR = System.getProperty("user.dir") + File.separator +
-                              "src/test/resources/data/cass2.1/keyspace1/";
+                              "src/test/resources/data/cass2.1/";
         } else {
             CASS3_DATA_DIR = System.getProperty("user.dir") + File.separator + "sstable-adaptor-core" +
-                    File.separator + "src/test/resources/data/cass3/keyspace1/";
+                    File.separator + "src/test/resources/data/cass3/";
             CASS21_DATA_DIR = System.getProperty("user.dir") + File.separator + "sstable-adaptor-core" +
-                    File.separator + "src/test/resources/data/cass2.1/keyspace1/";
+                    File.separator + "src/test/resources/data/cass2.1/";
         }
     }
 
@@ -147,6 +152,34 @@ public class TestBaseSSTableFunSuite {
 
             if (!isThriftTable)
               counter++;
+        }
+
+        return counter;
+    }
+
+    protected int getRowCount(final String inputSSTableFullPathFileName) {
+        LOGGER.info("Input file name: " + inputSSTableFullPathFileName);
+        int counter = 0;
+
+        try {
+            final SSTableSingleReader sstableSingleReader =
+                    new SSTableSingleReader(inputSSTableFullPathFileName, TestBaseSSTableFunSuite.HADOOP_CONF);
+            final ISSTableScanner currentScanner =
+                    sstableSingleReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
+
+            final CFMetaData cfMetaData = sstableSingleReader.getCfMetaData();
+            final int nowInSecs = (int) (System.currentTimeMillis() / 1000);
+            final List<ISSTableScanner> scanners = new ArrayList<>();
+            scanners.add(currentScanner);
+            try (SSTableIterator ci = new SSTableIterator(scanners, cfMetaData, nowInSecs)) {
+                while (ci.hasNext()) {
+                    final RowIterator rowIterator = ci.next();
+                    counter += printRowDetails(cfMetaData, rowIterator, false);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace(System.err);
+            return -1;
         }
 
         return counter;

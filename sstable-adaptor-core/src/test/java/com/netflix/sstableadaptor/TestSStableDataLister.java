@@ -61,7 +61,7 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
 
     /**
      *  This test works on the sstable file.
-     *      location: /src/test/resources/data/bills_compress/mc-6-big-Data.db
+     *      location: src/test/resources/data/cass3/keyspace1/bills_compress/mc-6-big-Data.db
      *
      *   The corresponding table definition is :
      *       CREATE TABLE bills_compress (
@@ -76,7 +76,7 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testOnLocalDataSimplePartitionKey() {
-        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "keyspace1/bills_compress/mc-6-big-Data.db";
         final int counter = getRowCount(inputSSTableFullPathFileName);
 
         LOGGER.info("\nCounter: " + counter);
@@ -130,39 +130,11 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testOnLocalDataCompositePartitionKey() {
-        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "compressed_bills/mc-2-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "keyspace1/compressed_bills/mc-2-big-Data.db";
         final int counter = getRowCount(inputSSTableFullPathFileName);
 
         LOGGER.info("\nCounter: " + counter);
         Assert.assertEquals(16, counter);
-    }
-
-    private int getRowCount(final String inputSSTableFullPathFileName) {
-        LOGGER.info("Input file name: " + inputSSTableFullPathFileName);
-        int counter = 0;
-
-        try {
-            final SSTableSingleReader sstableSingleReader =
-                        new SSTableSingleReader(inputSSTableFullPathFileName, TestBaseSSTableFunSuite.HADOOP_CONF);
-            final ISSTableScanner currentScanner =
-                    sstableSingleReader.getSSTableScanner(Long.MIN_VALUE, Long.MAX_VALUE);
-
-            final CFMetaData cfMetaData = sstableSingleReader.getCfMetaData();
-            final int nowInSecs = (int) (System.currentTimeMillis() / 1000);
-            final List<ISSTableScanner> scanners = new ArrayList<>();
-            scanners.add(currentScanner);
-            try (SSTableIterator ci = new SSTableIterator(scanners, cfMetaData, nowInSecs)) {
-                while (ci.hasNext()) {
-                    final RowIterator rowIterator = ci.next();
-                    counter += printRowDetails(cfMetaData, rowIterator, false);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace(System.err);
-            return -1;
-        }
-
-        return counter;
     }
 
     /**
@@ -171,7 +143,7 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
      */
     @Test
     public void testCasspactorIterator() throws IOException {
-        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "bills_compress/mc-6-big-Data.db";
+        final String inputSSTableFullPathFileName = CASS3_DATA_DIR + "keyspace1/bills_compress/mc-6-big-Data.db";
         final SSTableSingleReader reader1 = new SSTableSingleReader(inputSSTableFullPathFileName,
                                                                    TestBaseSSTableFunSuite.HADOOP_CONF);
         final SSTableSingleReader reader2 = new SSTableSingleReader(inputSSTableFullPathFileName,
@@ -207,13 +179,15 @@ public class TestSStableDataLister extends TestBaseSSTableFunSuite {
                                                    "org.apache.cassandra.dht.RandomPartitioner");
 
         final SSTableSingleReader cass21Reader0 =
-                new SSTableSingleReader(CASS21_DATA_DIR + "auditlogsbyid/keyspace1-auditlogsbyid-ka-1-Data.db",
+                new SSTableSingleReader(CASS21_DATA_DIR +
+                                        "keyspace1/auditlogsbyid/keyspace1-auditlogsbyid-ka-1-Data.db",
                                         cfMetaData, TestBaseSSTableFunSuite.HADOOP_CONF);
         final SSTableSingleReader cass21Reader1 =
-                new SSTableSingleReader(CASS21_DATA_DIR + "auditlogsbyid/keyspace1-auditlogsbyid-ka-3-Data.db",
+                new SSTableSingleReader(CASS21_DATA_DIR +
+                                        "keyspace1/auditlogsbyid/keyspace1-auditlogsbyid-ka-3-Data.db",
                                         cfMetaData, TestBaseSSTableFunSuite.HADOOP_CONF);
         final SSTableSingleReader cass3Reader =
-                new SSTableSingleReader(CASS3_DATA_DIR + "auditlogsbyid/mc-1-big-Data.db ",
+                new SSTableSingleReader(CASS3_DATA_DIR + "keyspace1/auditlogsbyid/mc-1-big-Data.db ",
                                         TestBaseSSTableFunSuite.HADOOP_CONF);
 
 
